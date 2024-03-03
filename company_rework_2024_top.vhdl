@@ -35,7 +35,7 @@ architecture rtl of company_rework_2024_top is
     signal out_byte_mask : std_logic_vector(31 downto 0);
 
     --Added comment on testmp2 branch
-    
+    --Adding a comment from Github
     --Process declaration
     begin
 
