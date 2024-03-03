@@ -33,6 +33,8 @@ architecture rtl of company_rework_2024_top is
     signal out_valid     : std_logic;
     signal out_data      : std_logic_vector(255 downto 0);
     signal out_byte_mask : std_logic_vector(31 downto 0);
+
+    --added line
     
     --Process declaration
     begin
