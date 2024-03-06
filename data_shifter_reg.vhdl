@@ -2,7 +2,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity data_shift_mux is
+entity data_shift_reg is
     port (
         CLK           : in  std_logic;
         RESET_N       : in  std_logic;
@@ -13,9 +13,9 @@ entity data_shift_mux is
 
         DATA_OUT      : out std_logic_vector(255 downto 0)
     );
-end entity data_shift_mux;
+end entity data_shift_reg;
 
-architecture rtl of data_shift_mux is
+architecture rtl of data_shift_reg is
     
 begin
 
