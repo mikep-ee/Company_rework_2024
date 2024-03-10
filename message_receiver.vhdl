@@ -18,10 +18,12 @@ entity message_receiver is
         OUT_VALID          : OUT  std_logic;
         OUT_BYTE_MASK      : OUT  std_logic_vector(31 downto 0);
 
-        OUT_BYTES          : OUT  std_logic_vector(63 downto 0);
+        OUT_BYTES          : OUT  byte_array(0 to 7);
         OUT_BYTES_WEN_N    : OUT  std_logic_vector(7 downto 0);
         OUT_BYTES_VAL      : OUT  std_logic;
         MAX_BYTE_CNT       : OUT  std_logic_vector(2 downto 0);
+        MSG_START          : OUT  std_logic;
+        MSG_DONE           : OUT  std_logic;
 
         LAST_BYTE_CNT      : OUT  std_logic_vector(2 downto 0)
     );

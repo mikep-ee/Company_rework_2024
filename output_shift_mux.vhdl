@@ -8,6 +8,7 @@ entity output_shift_mux is
     port (
         SHIFT_AMOUNT                : in std_logic_vector(2 downto 0);
 
+
         PREVIOUS_BYTE_ARRAY_8       : in byte_array(0 to 7);
         INPUT_BYTE_ARRAY_8          : in byte_array(0 to 7);
        
