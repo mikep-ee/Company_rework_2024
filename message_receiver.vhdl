@@ -19,8 +19,9 @@ entity message_receiver is
         OUT_BYTE_MASK      : OUT  std_logic_vector(31 downto 0);
 
         OUT_BYTES          : OUT  std_logic_vector(63 downto 0);
-        OUT_BYTES_EN_N     : OUT  std_logic_vector(7 downto 0);
-        OUT_BYTES_RDY      : OUT  std_logic;
+        OUT_BYTES_WEN_N    : OUT  std_logic_vector(7 downto 0);
+        OUT_BYTES_VAL      : OUT  std_logic;
+        MAX_BYTE_CNT       : OUT  std_logic_vector(2 downto 0);
 
         LAST_BYTE_CNT      : OUT  std_logic_vector(2 downto 0)
     );
