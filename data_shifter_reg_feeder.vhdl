@@ -2,6 +2,7 @@ library ieee;
 use ieee.std_logic_1164.all; 
 use ieee.numeric_std.all;
 use work.pkg_company_rework_types.all;
+--use work.pkg_company_rework_types.all;
 
 entity data_shifter_reg_feeder is
     port (

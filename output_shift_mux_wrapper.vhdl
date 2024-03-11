@@ -3,6 +3,7 @@ use ieee.std_logic_1164.all;
 use ieee.std_logic_arith.all;
 use ieee.numeric_std.all;
 use work.pkg_company_rework_types.all;
+use work.output_shift_mux;
 
 entity output_shift_mux_wrapper is
     port (

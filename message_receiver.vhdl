@@ -1,6 +1,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use work.pkg_company_rework_types.all;
 
 entity message_receiver is
     port (
@@ -11,7 +12,7 @@ entity message_receiver is
         IN_START_OF_PACKET : in  std_logic;
         IN_END_OF_PACKET   : in  std_logic;
         IN_DATA            : in  std_logic_vector(63 downto 0);
-        IN_EMPTY           : in  std_logic;
+        IN_EMPTY           : in  std_logic_vector(2 downto 0);
         IN_ERROR           : in  std_logic;
    
         IN_READY           : OUT  std_logic;

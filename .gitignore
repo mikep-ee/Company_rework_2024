@@ -1,0 +1,4 @@
+#Ignore Xilinx generated files (During compile)
+xsim.dir/
+*.log
+*.pb

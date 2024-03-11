@@ -2,8 +2,8 @@
 library IEEE;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
--- use work.pkg_company_rework_types.all;
-use work.all;
+use work.pkg_company_rework_types.all;
+--use work.all;
 
 --Entity declaration
 entity company_rework_2024_top is
@@ -38,7 +38,7 @@ architecture rtl of company_rework_2024_top is
         IN_START_OF_PACKET : in  std_logic;
         IN_END_OF_PACKET   : in  std_logic;
         IN_DATA            : in  std_logic_vector(63 downto 0);
-        IN_EMPTY           : in  std_logic;
+        IN_EMPTY           : in  std_logic_vector(2 downto 0);
         IN_ERROR           : in  std_logic;
         IN_READY           : in  std_logic; -- From the data_shifter_reg_feeder module
 
@@ -85,7 +85,7 @@ architecture rtl of company_rework_2024_top is
 
         MSG_DONE_OUT      : out std_logic;                    -- All bytes of the message have been received and entered into the shift register
         FEEDER_RDY        : out std_logic                     -- Feeder ready for more data   
-    )
+    );
    end component data_shifter_reg_feeder;
  
    component data_shift_reg is
@@ -224,4 +224,3 @@ architecture rtl of company_rework_2024_top is
         OUTPUT_BYTE_ARRAY_32 => s_output_byte_array_32_out_shft_mux_wrpr
     );
 end architecture rtl;
-```
