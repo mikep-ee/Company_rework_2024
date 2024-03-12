@@ -10,6 +10,15 @@ MODULES=\
 	output_shift_mux_wrapper.vhdl \
 	company_rework_2024_top.vhdl
 
+BEHAV_MODULES=\
+	pkg_company_rework_types.vhdl \
+    data_shifter_reg_feeder_behav.vhdl \
+    data_shifter_reg_behav.vhdl \
+    message_receiver_behav.vhdl \
+	output_shift_mux_behav.vhdl \
+	output_shift_mux_wrapper_behav.vhdl \
+	company_rework_2024_top.vhdl
+
 #TESTBENCH=tb_sink_module
 #GTKWAVE=/C/Users/mpaul/Documents/gtkwave-3.3.100-bin-win32/gtkwave/bin/gtkwave.exe
 #WAVEFILE=tb_wave.vcd
@@ -21,6 +30,11 @@ all: clean compile elaborate run
 compile: $(MODULES)
 	@echo "Compiling files..."
 	$(XVHDL) $(MODULES)
+
+# Object file depends on source
+behav: $(BEHAV_MODULES)
+	@echo "Compiling files..."
+	$(XVHDL) $(BEHAV_MODULES)
 #   compile: $(MODULES)
 #   	@echo "Compiling files..."
 #   	$(GHDL) -a $(GHDLFLAGS) $(MODULES)
