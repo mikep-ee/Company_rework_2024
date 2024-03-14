@@ -1,5 +1,5 @@
 XVHDL=xvhdl
-XVHDLFLAGS= -v
+XVHDLFLAGS= --2008
 #GHDLFLAGS= --std=08
 MODULES=\
 	pkg_company_rework_types.vhdl \
@@ -29,12 +29,12 @@ all: clean compile elaborate run
 # Object file depends on source
 compile: $(MODULES)
 	@echo "Compiling files..."
-	$(XVHDL) $(MODULES)
+	$(XVHDL) $(XVHDLFLAGS) $(MODULES)
 
 # Object file depends on source
 behav: $(BEHAV_MODULES)
 	@echo "Compiling files..."
-	$(XVHDL) $(BEHAV_MODULES)
+	$(XVHDL) $(XVHDLFLAGS) $(BEHAV_MODULES)
 #   compile: $(MODULES)
 #   	@echo "Compiling files..."
 #   	$(GHDL) -a $(GHDLFLAGS) $(MODULES)
