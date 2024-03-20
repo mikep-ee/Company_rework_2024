@@ -107,13 +107,18 @@ architecture behav of message_receiver is
 
   signal bus_in_array : byte_array(0 to 7);
 
-  --signals for code hiding
+  --signals for WAIT_SOP state code hiding
   signal s_msg_len_minus_4             : std_logic_vector(15 downto 0);
   signal s_no_full_cycles_b            : boolean := false;
   signal s_msg_cnt_from_data_bus_i     : integer range 0 to MAX_MSG_CNT_C-1;
   signal s_msg_len_from_data_bus_i     : integer range 0 to MAX_MSG_LEN_C-1;
   signal s_calc_cycles_for_msg_i       : integer range 0 to MAX_NUM_CYC_C-1;
-  signal s_calc_bytes_in_last_cycle_i  : integer range 0 to MAX_LAST_BYTE_CNT_C-1; 
+  signal s_calc_bytes_in_last_cycle_i  : integer range 0 to MAX_LAST_BYTE_CNT_C-1;
+
+  --signals for LAST_CYCLE state code hiding
+  signal s_last_cycle_bytes             : byte_array(0 to 7);
+  signal s_last_cycle_bytes_wen_n       : std_logic_vector(7 downto 0);
+  signal s_last_cycle_out_bytes_val     : std_logic; 
   
 begin    
 
@@ -126,8 +131,14 @@ begin
           end loop;
        end process map_inbus;
 
+    
+
     ----------------------------------------------------------------------------------------------------------
     -- These signals were created to hide code and make the flow of the state machine easier to read.
+    ----------------------------------------------------------------------------------------------------------
+
+    ----------------------------------------------------------------------------------------------------------
+    -- WAIT_SOP state signals to hide code
     ----------------------------------------------------------------------------------------------------------
     -- Message count and length from the data bus. Only the bits necessary to represent the
     -- max values are used.
@@ -151,6 +162,10 @@ begin
     s_calc_cycles_for_msg_i       <= to_integer(unsigned(s_msg_len_minus_4(7 downto 3))); 
     -- The number of bytes in the last cycle is calculated by taking the message length-4 mod 8
     s_calc_bytes_in_last_cycle_i  <= to_integer(unsigned(s_msg_len_minus_4(2 downto 0)));
+
+    ----------------------------------------------------------------------------------------------------------
+    -- LAST_CYCLE state signals to hide code
+    ----------------------------------------------------------------------------------------------------------
 
     -- End code hiding signals -------------------------------------------------------------------------------
 
@@ -212,12 +227,45 @@ begin
                 end if;
 
               when GET_DATA => 
-                
+                i := 0;
+                while i < 7 loop                                
+                  s_payload(i) <= bus_in_array(7-i);
+                  i := i+1;
+                end loop;
+
+                s_out_bytes_val   <= '1'; -- Output (payload) data is now valid
+                s_out_bytes_wen_n <= x"FF";
+                s_cyc_cnt_i       <= s_cyc_cnt_i_q + 1; -- Increment cycle counter
+
+                if(IN_ERROR) then
+                  s_nxt_state <= WAIT_SOP; -- Assume entire message is bad
+                elsif(not IN_READY) then
+                  s_out_bytes_val <= '0'; -- Hold off on outputting data until ready
+                  s_nxt_state     <= STALL; -- Stall until ready
+                else                  
+                  if(s_cyc_cnt_i_q = s_num_cycles_i_q) then
+                    s_nxt_state <= LAST_CYCLE; --Last cycle with less than 8 bytes
+                  else
+                    s_nxt_state <= GET_DATA; -- Cycle with 8 bytes of data
+                  end if;
+                end if;
 
               when LAST_CYCLE =>
-
+                 
               when STALL =>
-
+                
+                if(IN_ERROR) then
+                  s_nxt_state <= WAIT_SOP; -- Assume entire message is bad
+                elsif(not IN_READY) then
+                  s_nxt_state <= STALL; 
+                else                  
+                  s_out_bytes_val <= '1'; -- Output payload from data captured before the stall
+                  if(s_cyc_cnt_i_q = s_num_cycles_i_q) then
+                    s_nxt_state <= LAST_CYCLE; --Last cycle with less than 8 bytes
+                  else
+                    s_nxt_state <= GET_DATA; -- Cycle with 8 bytes of data
+                  end if;
+                end if;
               when GET_LEN =>  
 
               when GET_LO_LEN =>
