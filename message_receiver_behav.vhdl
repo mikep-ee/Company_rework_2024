@@ -13,7 +13,8 @@ entity message_receiver is
         CLK                : in  std_logic;
         RESET_N            : in  std_logic;
         
-        IN_VALID           : in  std_logic;
+        IN_VALID           : in  std_logic; -- For now, assume IN_VALID is only asserted as a result of 
+                                           -- bus stall initiated by me. So, no need to monitor IN_VALID
         IN_START_OF_PACKET : in  std_logic;
         IN_END_OF_PACKET   : in  std_logic;
         IN_DATA            : in  std_logic_vector(63 downto 0);
@@ -21,6 +22,7 @@ entity message_receiver is
         IN_ERROR           : in  std_logic;
    
         IN_READY           : IN   std_logic;
+        OUT_READY          : OUT  std_logic;
         OUT_VALID          : OUT  std_logic;
         OUT_BYTE_MASK      : OUT  std_logic_vector(31 downto 0);
 
@@ -38,7 +40,8 @@ end entity message_receiver;
 architecture behav of message_receiver is
   -- Type definitions
   --type bus_in is array(0 to 7) of std_logic_vector(7 downto 0);
-  type sm_state is (WAIT_SOP, GET_DATA, LAST_CYCLE, STALL, GOT_LEN, GOT_HI_LEN);
+  type sm_state is (WAIT_SOP, GET_DATA, LAST_CYCLE, STALL, STALL_AND_OUTPUT_DATA, 
+                    GET_LSB_LEN_AND_DATA, START_NEW_MESSAGE);
 
   -- Contstant definitions
   constant MAX_MSG_CNT_C : integer := 65535;
@@ -140,16 +143,24 @@ architecture behav of message_receiver is
   end procedure get_next_msg_data;
 
   procedure get_next_state(last_bytes : in integer range 0 to MAX_LAST_BYTE_CNT_C-1;                           
-                           next_state : out sm_state
-                           ) is                          
+                           stall_out : out boolean;
+                           next_state : out sm_state                           
+                           ) is  
+   -- variable stall_out : boolean := false;                        
   begin
+
+    stall_out := false;
     case last_bytes is   
-      when 1 | 2 | 3 | 4 | 5 =>      
-        next_state := GOT_LEN; -- Process next message length and maybe data       
+      when 1 | 2 | 3 | 4 =>      
+        next_state := STALL_AND_OUTPUT_DATA; -- Got length and data, stall to output data
+        stall_out := true;                   -- This will require a stall to unload this cycle's
+                                             -- data. Otherwise, the incoming will get dropped.
+      when 5 =>      
+        next_state := GET_DATA; -- Got length, now get the data       
       when 6 =>
-        next_state := GOT_HI_LEN; -- Get the LSB of the message length and data       
+        next_state := GET_LSB_LEN_AND_DATA; -- Got the MSB of length, get LSB and data       
       when others =>
-        next_state := WAIT_SOP;
+        next_state := WAIT_SOP; -- Should never get to this state
     end case;
 
   end procedure get_next_state;
@@ -158,7 +169,9 @@ architecture behav of message_receiver is
   signal s_state       : sm_state := WAIT_SOP;
   signal s_state_q     : sm_state;
   signal s_nxt_state   : sm_state;  
-  signal s_nxt_state_q : sm_state; 
+  --signal s_nxt_state_q : sm_state; 
+  signal s_nxt_state_ptr   : sm_state;  
+  signal s_nxt_state_ptr_q : sm_state; 
 
   signal s_msg_cnt_i   : integer range 0 to MAX_MSG_CNT_C-1;   
   signal s_msg_cnt_i_q : integer range 0 to MAX_MSG_CNT_C-1;
@@ -193,6 +206,8 @@ architecture behav of message_receiver is
   signal s_next_message_data    : byte_array(0 to 7);
   signal s_next_message_data_q  : byte_array(0 to 7);
 
+  signal s_stall_comb : boolean := false;
+
   --signals for WAIT_SOP state code hiding
   signal s_msg_len_minus_4             : std_logic_vector(15 downto 0);
   signal s_no_full_cycles_b            : boolean := false;
@@ -205,6 +220,14 @@ architecture behav of message_receiver is
   signal s_last_cycle_bytes             : byte_array(0 to 7);
   signal s_last_cycle_bytes_wen_n       : std_logic_vector(7 downto 0);
   signal s_last_cycle_out_bytes_val     : std_logic; 
+
+  --signals for GET_DATA state code hiding
+  signal s_last_full_cycle_b           : boolean := false;
+  signal s_additional_data_b           : boolean := false;
+  signal s_eop_b                       : boolean := false;
+  signal s_start_a_new_msg_b           : boolean := false;
+  signal s_get_last_bytes_b            : boolean := false;
+  signal s_wait_next_sop_b             : boolean := false;
   
 begin    
 
@@ -247,9 +270,16 @@ begin
     -- The number of bytes in the last cycle is calculated by taking the message length-4 mod 8
     s_calc_bytes_in_last_cycle_i  <= to_integer(unsigned(s_msg_len_minus_4(2 downto 0)));
 
+   ----------------------------------------------------------------------------------------------------------
+    -- GET_DATA state signals to hide code
     ----------------------------------------------------------------------------------------------------------
-    -- LAST_CYCLE state signals to hide code
-    ----------------------------------------------------------------------------------------------------------
+    s_last_full_cycle_b  <= (s_cyc_cnt_i_q = s_num_cycles_i_q); -- Last cycle with 8 bytes of data
+    s_additional_data_b  <= (s_last_byte_cnt_i_q > 0);          -- Last cycle with 8 bytes of data, but <8 more bytes coming
+    s_eop_b              <= (eop_a = '1');                      -- End of packet signal
+    s_start_a_new_msg_b  <= (s_last_full_cycle_b and (not s_additional_data_b) and (not s_eop_b));
+    s_get_last_bytes_b   <= (s_last_full_cycle_b and      s_additional_data_b                   );
+    s_wait_next_sop_b    <= (s_last_full_cycle_b and                                    s_eop_b );
+    
 
     -- End code hiding signals -------------------------------------------------------------------------------
 
@@ -258,6 +288,8 @@ begin
     OUT_BYTES          <= s_payload_q;
     OUT_BYTES_WEN_N    <= s_out_bytes_wen_n_q;
     OUT_BYTES_VAL      <= s_out_bytes_val_q;
+    OUT_READY          <= '0' when s_stall_comb else '1'; -- This is a combinatorial output because, if stalled,
+                                                          -- we can't accept data on the next cycle
     MSG_START          <= s_msg_start_q;
     MSG_DONE           <= '0'; --declare a signal for this
     LAST_BYTE_CNT      <= std_logic_vector(to_unsigned(s_last_byte_cnt_i_q, LAST_BYTE_CNT'length)); --declare a signal for this
@@ -270,10 +302,12 @@ begin
          variable v_next_message_len_i : integer range 0 to MAX_MSG_LEN_C-1;
          variable v_next_message_data  : byte_array(0 to 7);
          variable v_nxt_state          : sm_state;
+         variable v_stall_comb         : boolean;
 
        begin
            -- Default assignments
            s_state           <= WAIT_SOP;
+           s_nxt_state_ptr   <= s_nxt_state_ptr_q;
            s_payload         <= s_payload_q;
            s_msg_cnt_i       <= s_msg_cnt_i_q;
            s_msg_len_i       <= s_msg_len_i_q;
@@ -288,8 +322,9 @@ begin
            s_out_byte_mask   <= s_out_byte_mask;
            s_next_message_len_i <= s_next_message_len_i_q;
            s_next_message_data  <= s_next_message_data_q;
+           s_stall_comb         <= false;
 
-           case s_state is
+           case s_state_q is
               when WAIT_SOP =>
                 s_msg_cnt_i <= s_msg_cnt_from_data_bus_i;
                 s_msg_len_i <= s_msg_len_from_data_bus_i; 
@@ -321,6 +356,8 @@ begin
 
               when GET_DATA => 
                 i := 0;
+
+                --Copy the payload data
                 while i < 7 loop                                
                   s_payload(i) <= bus_in_array(7-i);
                   i := i+1;
@@ -332,16 +369,33 @@ begin
 
                 if(IN_ERROR) then
                   s_nxt_state <= WAIT_SOP; -- Assume entire message is bad
-                elsif(not IN_READY) then
-                  s_out_bytes_val <= '0'; -- Hold off on outputting data until ready
-                  s_nxt_state     <= STALL; -- Stall until ready
-                else                  
-                  if(s_cyc_cnt_i_q = s_num_cycles_i_q) then
-                    s_nxt_state <= LAST_CYCLE; --Last cycle with less than 8 bytes
-                  else
-                    s_nxt_state <= GET_DATA; -- Cycle with 8 bytes of data
-                  end if;
+
+                elsif(s_start_a_new_msg_b) then
+                  s_msg_done  <= '1'; -- Message is done
+                  
+                  s_nxt_state     <= START_NEW_MESSAGE; 
+                  s_nxt_state_ptr <= START_NEW_MESSAGE; -- Save next pointer state in case we need to stall
+
+                elsif(s_get_last_bytes_b) then
+                  
+                  s_nxt_state     <= LAST_CYCLE; -- Last cycle with less than 8 bytes
+                  s_nxt_state_ptr <= LAST_CYCLE; -- Save next pointer state in case we need to stall
+                
+                elsif(s_wait_next_sop_b) then
+                  s_msg_done  <= '1';      -- Message is done
+                  s_nxt_state <= WAIT_SOP; -- Wait for the next packet
+
+                else
+
+                  s_nxt_state     <= GET_DATA; -- Get the next 8 bytes of data
+                  s_nxt_state_ptr <= GET_DATA;
                 end if;
+
+                if(not IN_READY) then
+                  s_nxt_state     <= STALL;    -- Override next state, if not ready
+                                               -- The s_next_state_ptr will know where to
+                                               -- go after the stall                 
+                end if;                  
 
               when LAST_CYCLE =>
                
@@ -361,16 +415,21 @@ begin
                 s_next_message_data  <= v_next_message_data;
 
                 get_next_state(s_last_byte_cnt_i_q,  -- Procedure inputs
+                               v_stall_comb,         -- Procedure outputs
                                v_nxt_state           -- Procedure outputs 
                               );
-                s_nxt_state <= v_nxt_state;
+                s_nxt_state     <= v_nxt_state;
+                s_nxt_state_ptr <= v_nxt_state;
+                s_stall_comb    <= v_stall_comb; -- combinatorial output because, if stalled,
+                                                 -- we can't accept data on the next cycle
 
                 -- Override the next state if any of the following conditions are met                
-                if(IN_ERROR or eop_a) then
+                if(IN_ERROR) then
                   s_nxt_state <= WAIT_SOP; -- Assume entire message is bad
-                elsif(not IN_READY) then
-                  s_msg_done   <= '0'; -- Hold off on outputting data until ready                  
-                  s_nxt_state  <= STALL;                   
+                elsif(not IN_READY) then                  
+                  s_nxt_state     <= STALL; -- Override next state, if not ready
+                                            -- The s_next_state_ptr will know where to
+                                            -- go after the stall              
                 end if;
                 
               when STALL =>                
@@ -378,15 +437,14 @@ begin
                   s_nxt_state <= WAIT_SOP; -- Assume entire message is bad
                 elsif(not IN_READY) then
                   s_nxt_state <= STALL; 
-                else                  
-                  s_out_bytes_val <= '1'; -- Output payload from data captured before the stall
-                  if(s_cyc_cnt_i_q = s_num_cycles_i_q) then
-                    s_nxt_state <= LAST_CYCLE; --Last cycle with less than 8 bytes
-                  else
-                    s_nxt_state <= GET_DATA; -- Cycle with 8 bytes of data
-                  end if;
+                else   
+                  s_nxt_state <= s_nxt_state_ptr_q; -- Go back to designated next state, before stall                  
                 end if;
-              when GOT_LEN =>  
+              when STALL_AND_OUTPUT_DATA =>
+
+              when START_NEW_MESSAGE =>
+             
+              when GET_LSB_LEN_AND_DATA =>  
                 -- May need to break this up into two states
                 -- GOT_LEN and GOT_LEN and DATA
                 -- Maybe GOT_HI_LEN and also handle data
@@ -399,8 +457,6 @@ begin
                 -- would be the last. So, the get_next_state function should be
                 -- updated to consider that case.
 
-              when GOT_HI_LEN =>
-
               when others =>
                  s_nxt_state <= WAIT_SOP;
            end case;
@@ -410,7 +466,8 @@ begin
        begin
 
           if RESET_N = '0' then
-            s_state_q           <= WAIT_SOP;           
+            s_state_q           <= WAIT_SOP;  
+            s_nxt_state_ptr     <= WAIT_SOP;         
             s_msg_cnt_i_q       <= 0;
             s_msg_len_i_q       <= 0;
             s_payload_q         <= (others => (others => '0'));
@@ -425,7 +482,8 @@ begin
             s_next_message_len_i_q  <= 0;
             s_next_message_data_q   <= (others => (others => '0'));
           elsif rising_edge(CLK) then 
-            s_state_q           <= s_state  ;            
+            s_state_q           <= s_state  ;  
+            s_nxt_state_ptr_q   <= s_nxt_state_ptr;          
             s_msg_cnt_i_q       <= s_msg_cnt_i;
             s_msg_len_i_q       <= s_msg_len_i;
             s_payload_q         <= s_payload;
