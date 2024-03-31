@@ -173,6 +173,12 @@ architecture behav of message_receiver is
   signal s_nxt_state_ptr   : sm_state;  
   signal s_nxt_state_ptr_q : sm_state; 
 
+  --signal in_valid_b    : boolean := false;
+  signal s_in_error_b    : boolean := false;
+  signal s_in_ready_b    : boolean := false;
+  signal s_in_sop_b      : boolean := false;
+  signal s_in_eop_b      : boolean := false;
+
   signal s_msg_cnt_i   : integer range 0 to MAX_MSG_CNT_C-1;   
   signal s_msg_cnt_i_q : integer range 0 to MAX_MSG_CNT_C-1;
   signal s_msg_len_i   : integer range 0 to MAX_MSG_LEN_C-1;
@@ -206,7 +212,10 @@ architecture behav of message_receiver is
   signal s_next_message_data    : byte_array(0 to 7);
   signal s_next_message_data_q  : byte_array(0 to 7);
 
-  signal s_stall_comb : boolean := false;
+  signal s_stall_comb        : boolean := false;
+  signal s_stall_comb_save   : boolean := false;
+  signal s_stall_comb_save_q : boolean := false;
+  
 
   --signals for WAIT_SOP state code hiding
   signal s_msg_len_minus_4             : std_logic_vector(15 downto 0);
@@ -224,7 +233,7 @@ architecture behav of message_receiver is
   --signals for GET_DATA state code hiding
   signal s_last_full_cycle_b           : boolean := false;
   signal s_additional_data_b           : boolean := false;
-  signal s_eop_b                       : boolean := false;
+  --signal s_eop_b                       : boolean := false;
   signal s_start_a_new_msg_b           : boolean := false;
   signal s_get_last_bytes_b            : boolean := false;
   signal s_wait_next_sop_b             : boolean := false;
@@ -239,6 +248,12 @@ begin
             i := i + 1;
           end loop;
        end process map_inbus;
+
+    --Convert single bit indicators to boolean
+    s_in_error_b <= (IN_ERROR           = '1');
+    s_in_ready_b <= (IN_READY           = '1');
+    s_in_sop_b   <= (IN_START_OF_PACKET = '1');
+    s_in_eop_b   <= (IN_END_OF_PACKET   = '1');
 
     ----------------------------------------------------------------------------------------------------------
     -- These signals were created to hide code and make the flow of the state machine easier to read.
@@ -275,10 +290,10 @@ begin
     ----------------------------------------------------------------------------------------------------------
     s_last_full_cycle_b  <= (s_cyc_cnt_i_q = s_num_cycles_i_q); -- Last cycle with 8 bytes of data
     s_additional_data_b  <= (s_last_byte_cnt_i_q > 0);          -- Last cycle with 8 bytes of data, but <8 more bytes coming
-    s_eop_b              <= (eop_a = '1');                      -- End of packet signal
-    s_start_a_new_msg_b  <= (s_last_full_cycle_b and (not s_additional_data_b) and (not s_eop_b));
-    s_get_last_bytes_b   <= (s_last_full_cycle_b and      s_additional_data_b                   );
-    s_wait_next_sop_b    <= (s_last_full_cycle_b and                                    s_eop_b );
+    --s_eop_b              <= (eop_a = '1');                      -- End of packet signal
+    s_start_a_new_msg_b  <= (s_last_full_cycle_b and (not s_additional_data_b) and (not s_in_eop_b));
+    s_get_last_bytes_b   <= (s_last_full_cycle_b and      s_additional_data_b                      );
+    s_wait_next_sop_b    <= (s_last_full_cycle_b and                                    s_in_eop_b );
     
 
     -- End code hiding signals -------------------------------------------------------------------------------
@@ -340,10 +355,10 @@ begin
                 s_out_bytes_wen_n <= x"0F"; 
                 s_out_byte_mask   <= calc_mask(s_msg_len_from_data_bus_i);                
                 
-                if(sop_a and (not IN_ERROR)) then                  
+                if(s_in_sop_b and (not s_in_error_b)) then                  
                   s_out_bytes_val   <= '1'; -- Output (payload) data is now valid
                   s_msg_start       <= '1'; -- Start of message  
-                  s_cyc_cnt_i       <= 1;   --Initialize cycle counter
+                  s_cyc_cnt_i       <=  1 ; --Initialize cycle counter
 
                   if(s_no_full_cycles_b) then 
                     s_nxt_state <= LAST_CYCLE; --Last cycle with less than 8 bytes
@@ -391,7 +406,7 @@ begin
                   s_nxt_state_ptr <= GET_DATA;
                 end if;
 
-                if(not IN_READY) then
+                if(not s_in_ready_b) then
                   s_nxt_state     <= STALL;    -- Override next state, if not ready
                                                -- The s_next_state_ptr will know where to
                                                -- go after the stall                 
@@ -399,7 +414,9 @@ begin
 
               when LAST_CYCLE =>
                
-                s_msg_done  <= '1'; -- Message is done
+                s_msg_done        <= '1'; -- Message is done
+                s_stall_comb_save <= false;
+                v_stall_comb      := false;
 
                 output_last_payload(s_last_byte_cnt_i_q , bus_in_array,                  -- Procedure inputs
                                     v_out_bytes_val     , v_out_bytes_wen_n , v_payload  -- Procedure outputs
@@ -420,27 +437,31 @@ begin
                               );
                 s_nxt_state     <= v_nxt_state;
                 s_nxt_state_ptr <= v_nxt_state;
-                s_stall_comb    <= v_stall_comb; -- combinatorial output because, if stalled,
-                                                 -- we can't accept data on the next cycle
+                s_stall_comb    <= v_stall_comb; -- Stall allows the next message data to be output
+                                                 -- without losing the next cycle's data
 
                 -- Override the next state if any of the following conditions are met                
-                if(IN_ERROR) then
+                if(s_in_error_b) then
                   s_nxt_state <= WAIT_SOP; -- Assume entire message is bad
-                elsif(not IN_READY) then                  
+                elsif(not s_in_ready_b) then                  
                   s_nxt_state     <= STALL; -- Override next state, if not ready
                                             -- The s_next_state_ptr will know where to
-                                            -- go after the stall              
+                                            -- go after the stall 
+                  s_stall_comb_save <= v_stall_comb;             
                 end if;
                 
-              when STALL =>                
-                if(IN_ERROR) then
+              when STALL =>    
+                s_stall_comb_save <= false; -- Clear the register in case we entered from the STALL state            
+                if(s_in_error_b) then
                   s_nxt_state <= WAIT_SOP; -- Assume entire message is bad
-                elsif(not IN_READY) then
-                  s_nxt_state <= STALL; 
+                elsif(not s_in_ready_b) then
+                  s_nxt_state       <= STALL; 
+                  s_stall_comb_save <= s_stall_comb_save_q; -- retain in case it is needed
                 else   
-                  s_nxt_state <= s_nxt_state_ptr_q; -- Go back to designated next state, before stall                  
+                  s_nxt_state  <= s_nxt_state_ptr_q; -- Go back to designated next state, before stall 
+                  s_stall_comb <= s_stall_comb_save_q;                  
                 end if;
-              when STALL_AND_OUTPUT_DATA =>
+              when STALL_AND_OUTPUT_DATA =>                
 
               when START_NEW_MESSAGE =>
              
@@ -481,6 +502,7 @@ begin
             s_cyc_cnt_i         <= 0;
             s_next_message_len_i_q  <= 0;
             s_next_message_data_q   <= (others => (others => '0'));
+            s_stall_comb_save_q     <= false;
           elsif rising_edge(CLK) then 
             s_state_q           <= s_state  ;  
             s_nxt_state_ptr_q   <= s_nxt_state_ptr;          
@@ -497,6 +519,7 @@ begin
             s_cyc_cnt_i         <= s_cyc_cnt_i_q;
             S_next_message_len_i_q  <= s_next_message_len_i;
             s_next_message_data_q   <= s_next_message_data;
+            s_stall_comb_save_q     <= s_stall_comb_save;
           end if; 
     end process rcv_sm_reg;
 
