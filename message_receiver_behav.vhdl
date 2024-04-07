@@ -43,7 +43,7 @@ architecture behav of message_receiver is
   type sm_state is (WAIT_SOP, GET_DATA, LAST_CYCLE, STALL, STALL_AND_OUTPUT_DATA, 
                     GET_LSB_LEN_AND_DATA, START_NEW_MESSAGE);
 
-  type msg_type_t is (no_len_no_data, len_with_data, msb_len_only, dont_care);
+  type msg_type_t is (no_length_no_data, length_no_data, length_with_data, msb_length_only, dont_care);
 
   -- Contstant definitions
   constant MAX_MSG_CNT_C : integer := 65535;
@@ -80,6 +80,9 @@ architecture behav of message_receiver is
  --   end if;
  -- end function current_cycle;
 
+--*******************************************************************************************
+-- PROCEDURE: output_last_payload
+--*******************************************************************************************
   procedure output_last_payload(last_bytes : in integer range 0 to MAX_LAST_BYTE_CNT_C-1;
                                 bus_in : in byte_array(0 to 7);
                                 s_out_bytes_val : out std_logic;
@@ -106,6 +109,9 @@ architecture behav of message_receiver is
     end if;        
   end procedure output_last_payload;
 
+--*******************************************************************************************
+-- PROCDURE: is_last_cycle
+--*******************************************************************************************
   procedure get_next_msg_data(last_bytes : in integer range 0 to MAX_LAST_BYTE_CNT_C-1;
                               bus_in : in byte_array(0 to 7); 
                               next_message_len : out integer range 0 to MAX_MSG_LEN_C-1;
@@ -175,7 +181,9 @@ architecture behav of message_receiver is
   --  end case;
 --
   --end procedure get_next_state;
-
+--*******************************************************************************************
+-- FUNCTION: is_last_cycle
+--*******************************************************************************************
 function is_stall_required(last_bytes : in integer range 0 to MAX_LAST_BYTE_CNT_C-1                      
                          ) return boolean is                        
 begin
@@ -187,8 +195,11 @@ begin
   end if;
 end function is_stall_required;  
 
-
-  function get_next_msg_type(last_bytes : integer range 0 to MAX_LAST_BYTE_CNT_C-1) return msg_type_t is
+--*******************************************************************************************
+-- FUNCTION: is_last_cycle
+--*******************************************************************************************
+  function get_next_msg_type(last_bytes : integer range 0 to MAX_LAST_BYTE_CNT_C-1
+                             ) return msg_type_t is
   begin
     case last_bytes is
       when 0 =>
@@ -203,13 +214,16 @@ end function is_stall_required;
         return dont_care;                       
     end case;
   end function get_next_msg_type;
-
-  function is_last_cycle(msg_len : std_logic_vector(15 downto 0),
+--*******************************************************************************************
+-- FUNCTION: is_last_cycle
+--*******************************************************************************************
+  function is_last_cycle(msg_len : std_logic_vector(15 downto 0);
                          bytes_captured : integer range 0 to MAX_MSG_LEN_C-1
                                   ) return boolean is
     variable msg_len_i : integer range 0 to MAX_MSG_LEN_C-1;
     variable msg_len_minus_bytes_captured : std_logic_vector(15 downto 0);
   begin
+    -- The next cycle will be the last cycle if the message length - bytes captured is <= 8. 
     msg_len_i := to_integer(unsigned(msg_len(4 downto 0)));
     msg_len_minus_bytes_captured := std_logic_vector(to_unsigned(msg_len_i - bytes_captured, 
                                                          msg_len_minus_bytes_captured'length-1));    
@@ -217,9 +231,12 @@ end function is_stall_required;
     return not (to_integer(unsigned(msg_len_minus_bytes_captured(7 downto 3))) = 0);
   end function is_last_cycle;
 
-  function remaining_cycles(msg_len        : std_logic_vector(15 downto 0),
+--*******************************************************************************************
+-- FUNCTION: is_last_cycle
+--*******************************************************************************************
+  function remaining_cycles(msg_len        : std_logic_vector(15 downto 0);
                             bytes_captured : integer range 0 to MAX_MSG_LEN_C-1
-                                  ) return boolean is
+                                  ) return integer is
     variable msg_len_i : integer range 0 to MAX_MSG_LEN_C-1;
     variable msg_len_minus_bytes_captured : std_logic_vector(15 downto 0);
   begin
@@ -233,9 +250,14 @@ end function is_stall_required;
 
     return to_integer(unsigned(msg_len_minus_bytes_captured(4 downto 3)));
 
-    function last_byte_cnt(msg_len        : std_logic_vector(15 downto 0),
+  end function remaining_cycles;
+
+--*******************************************************************************************
+-- FUNCTION: is_last_cycle
+--*******************************************************************************************
+    function calc_last_byte_cnt(msg_len        : std_logic_vector(15 downto 0);
                             bytes_captured : integer range 0 to MAX_MSG_LEN_C-1
-                                  ) return boolean is
+                                  ) return integer is
     variable msg_len_i : integer range 0 to MAX_MSG_LEN_C-1;
     variable msg_len_minus_bytes_captured : std_logic_vector(15 downto 0);
   begin
@@ -247,8 +269,28 @@ end function is_stall_required;
                                                          msg_len_minus_bytes_captured'length-1));    
 
     return to_integer(unsigned(msg_len_minus_bytes_captured(2 downto 0)));
-  end function last_byte_cnt;
+  end function calc_last_byte_cnt;
 
+--*******************************************************************************************
+-- FUNCTION: is_last_cycle
+--*******************************************************************************************
+  function map_msg_data (byte_in_array : byte_array(0 to 7); 
+                         start_index   : integer
+                         ) return byte_array is
+    variable i : integer := 0;
+    variable byte_array_out : byte_array(0 to 7) := (others => (others => '0'));
+  begin    
+
+   while i < 8 loop 
+     if(i < start_index) then
+       byte_array_out(i) := byte_in_array(i);
+     end if;
+     i := i+1;
+   end loop;
+
+    return byte_array_out;
+
+  end function map_msg_data;
 
   -- Signal definitions
   signal s_state       : sm_state := WAIT_SOP;
@@ -321,6 +363,8 @@ end function is_stall_required;
   --signals for GET_DATA state code hiding
   signal s_last_full_cycle_b           : boolean := false;
   signal s_additional_data_b           : boolean := false;
+  signal s_message_done_b              : boolean := false;
+
   --signal s_eop_b                       : boolean := false;
   signal s_start_a_new_msg_b           : boolean := false;
   signal s_get_last_bytes_b            : boolean := false;
@@ -343,7 +387,7 @@ begin
     map_inbus : process(all)
          variable i : integer := 0;
        begin
-          while i < 7 loop
+          while i < 8 loop
             bus_in_array(i) <= IN_DATA(63-(8*i) downto 56-(8*i));
             i := i + 1;
           end loop; 
@@ -394,7 +438,7 @@ begin
     --s_eop_b              <= (eop_a = '1');                      -- End of packet signal
     s_start_a_new_msg_b  <= (s_last_full_cycle_b and (not s_additional_data_b) and (not s_in_eop_b));
     s_get_last_bytes_b   <= (s_last_full_cycle_b and      s_additional_data_b                      );
-    s_wait_next_sop_b    <= (s_last_full_cycle_b and                                    s_in_eop_b );
+    s_message_done_b     <= (s_last_full_cycle_b and                                    s_in_eop_b );
     
     ----------------------------------------------------------------------------------------------------------
     -- START_NEW_MESSAGE state signals to hide code
@@ -405,36 +449,36 @@ begin
       case s_next_msg_type_q is
         when no_length_no_data =>
           s_new_msg_length_i         <= to_integer(unsigned(IN_DATA(63 downto 48)));
-          s_new_msg_data_i           <= 
+          s_new_msg_data_i           <= map_msg_data(bus_in_array, 2);
           s_new_msg_cycle_calc_i     <= remaining_cycles(IN_DATA(63 downto 48), 0); 
-          s_new_msg_last_byte_cnt_i  <= last_byte_cnt(IN_DATA(63 downto 48), 0);
-          s_new_msg_out_bytes_wen_n  <= 
-          s_new_msg_mask             <= 
+          s_new_msg_last_byte_cnt_i  <= calc_last_byte_cnt(IN_DATA(63 downto 48), 0);
+          --s_new_msg_out_bytes_wen_n  <= 
+          --s_new_msg_mask             <= 
           s_new_msg_no_full_cycles_b <= is_last_cycle(IN_DATA(63 downto 48), 0);
-        when length_with_data =>
-          s_new_msg_length_i         <= 
-          s_new_msg_data_i           <= 
-          s_new_msg_cycle_calc_i     <= 
-          s_new_msg_last_byte_cnt_i  <= 
-          s_new_msg_out_bytes_wen_n  <= 
-          s_new_msg_mask             <= 
-          s_new_msg_no_full_cycles_b <= 
-        when length_no_data =>
-          s_new_msg_length_i         <= 
-          s_new_msg_data_i           <= 
-          s_new_msg_cycle_calc_i     <= 
-          s_new_msg_last_byte_cnt_i  <= 
-          s_new_msg_out_bytes_wen_n  <= 
-          s_new_msg_mask             <= 
-          s_new_msg_no_full_cycles_b <= 
-        when msb_length_only =>
-          s_new_msg_length_i         <= 
-          s_new_msg_data_i           <= 
-          s_new_msg_cycle_calc_i     <= 
-          s_new_msg_last_byte_cnt_i  <= 
-          s_new_msg_out_bytes_wen_n  <= 
-          s_new_msg_mask             <= 
-          s_new_msg_no_full_cycles_b <= 
+        --when length_with_data =>
+        --  s_new_msg_length_i         <= 
+        --  s_new_msg_data_i           <= 
+        --  s_new_msg_cycle_calc_i     <= 
+        --  s_new_msg_last_byte_cnt_i  <= 
+        --  s_new_msg_out_bytes_wen_n  <= 
+        --  s_new_msg_mask             <= 
+        --  s_new_msg_no_full_cycles_b <= 
+        --when length_no_data =>
+        --  s_new_msg_length_i         <= 
+        --  s_new_msg_data_i           <= 
+        --  s_new_msg_cycle_calc_i     <= 
+        --  s_new_msg_last_byte_cnt_i  <= 
+        --  s_new_msg_out_bytes_wen_n  <= 
+        --  s_new_msg_mask             <= 
+        --  s_new_msg_no_full_cycles_b <= 
+        --when msb_length_only =>
+        --  s_new_msg_length_i         <= 
+        --  s_new_msg_data_i           <= 
+        --  s_new_msg_cycle_calc_i     <= 
+        --  s_new_msg_last_byte_cnt_i  <= 
+        --  s_new_msg_out_bytes_wen_n  <= 
+        --  s_new_msg_mask             <= 
+        --  s_new_msg_no_full_cycles_b <= 
         when others =>
       end case;
     end process;
@@ -482,7 +526,7 @@ begin
            s_next_message_len_i <= s_next_message_len_i_q;
            s_next_message_data  <= s_next_message_data_q;
            s_stall_comb         <= false;
-           s_next_msg_type      := s_next_msg_type_q;
+           s_next_msg_type      <= s_next_msg_type_q;
 
            case s_state_q is
               when WAIT_SOP =>
@@ -551,13 +595,13 @@ begin
                   -- s_new_msg_index_i    <= v_new_msg_index_i;
                   s_new_msg_index_i    <= 6;
 
-                  s_next_msg_type := get_next_msg_type(s_last_byte_cnt_i_q); 
+                  s_next_msg_type <= get_next_msg_type(s_last_byte_cnt_i_q); 
                 elsif(s_get_last_bytes_b) then
                   
                   s_nxt_state     <= LAST_CYCLE; -- Last cycle with less than 8 bytes
                   s_nxt_state_ptr <= LAST_CYCLE; -- Save next pointer state in case we need to stall
                 
-                elsif(s_wait_next_sop_b) then
+                elsif(s_message_done_b) then
                   s_msg_done  <= '1';      -- Message is done
                   s_nxt_state <= WAIT_SOP; -- Wait for the next packet
 
@@ -619,7 +663,6 @@ begin
                   s_nxt_state <= WAIT_SOP; -- Assume entire message is bad
                 elsif(not s_in_ready_b) then
                   s_nxt_state       <= STALL; 
-                  s_stall_comb_save <= s_stall_comb_save_q; -- retain in case it is needed
                 else   
                   s_nxt_state  <= s_nxt_state_ptr_q; -- Go back to designated next state, before stall 
                   s_stall_comb <= s_stall_comb_save_q;                  
@@ -631,7 +674,7 @@ begin
                 i := 0;
                 while i < 8 loop 
                   if(i <= s_new_msg_index_i) then
-                    s_payload(i) := s_new_msg_data_i(i);
+                    s_payload(i) <= s_new_msg_data_i(i);
                   end if;
                   i := i+1;
                 end loop;
