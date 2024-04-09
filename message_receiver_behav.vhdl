@@ -8,6 +8,20 @@ use ieee.numeric_std.all;
 --use ieee.numeric_std.to_std_logic_vector;
 use work.pkg_company_rework_types.all;
 
+* Next steps:
+- Copy over and modify old test bench to test the message receiver
+  C:\Users\mikep\OneDrive\Mikes_stuff\Resume\2018 and Before\Sarte_Group\IMC\Interview_project\fully functional_cleaned_up_code
+- Update scripts to compile and run the test bench
+- Debug the test bench
+- Sythesize:
+  - While loop as an experiment
+  - Sythesize message message_receiver
+- refactor message_receiver or continue with other modules 
+    (Refactor is probably best. The point is to practice, not finish the code)
+- <Remember to use git as necessary and for practice. Try some things out.>
+
+
+
 entity message_receiver is
     port (
         CLK                : in  std_logic;
