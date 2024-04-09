@@ -21,9 +21,9 @@ entity message_receiver is
         IN_EMPTY           : in  std_logic_vector(2 downto 0);
         IN_ERROR           : in  std_logic;
    
-        IN_READY           : IN   std_logic;
-        OUT_READY          : OUT  std_logic;
-        OUT_VALID          : OUT  std_logic;
+        IN_READY           : IN   std_logic; -- Ready from module being fed OUT_BYTES
+        OUT_READY          : OUT  std_logic; -- Ready to the top level module
+        --OUT_VALID          : OUT  std_logic;
         OUT_BYTE_MASK      : OUT  std_logic_vector(31 downto 0);
 
         OUT_BYTES          : OUT  byte_array(0 to 7);
@@ -116,7 +116,7 @@ architecture behav of message_receiver is
                               bus_in : in byte_array(0 to 7); 
                               next_message_len : out integer range 0 to MAX_MSG_LEN_C-1;
                               next_message_data : out byte_array(0 to 7);
-                              next_message_index : out integer range 0 to MAX_MSG_LEN_C-1
+                              next_message_bytes : out integer range 0 to MAX_MSG_LEN_C-1
                               ) is
     variable i : integer := 0;
   begin
@@ -128,34 +128,40 @@ architecture behav of message_receiver is
       when 0 =>
         next_message_len  := 0;
         next_message_data := (others => (others => '0'));
-        next_message_index := 6; -- Since there are no length bytes, 2 bytes will take up space on the bus.
+        next_message_bytes := 6; -- Since there are no length bytes, 2 bytes will take up space on the bus.
                                  -- which leaves space for 6 bytes of data.
       when 1 =>        
         next_message_len          := to_integer(unsigned(bus_in(1)) & unsigned(bus_in(2)));
         next_message_data(0 to 4) := bus_in(3 to 7);
-        next_message_index := 5;
+        next_message_bytes := 5;
       when 2 =>
         next_message_len          := to_integer(unsigned(bus_in(2)) & unsigned(bus_in(3))); 
         next_message_data(0 to 3) := bus_in(4 to 7);
-        next_message_index := 4;
+        next_message_bytes := 4;
       when 3 =>
         next_message_len          := to_integer(unsigned(bus_in(3)) & unsigned(bus_in(4)));
         next_message_data(0 to 2) := bus_in(5 to 7);
-        next_message_index := 3;
+        next_message_bytes := 3;
       when 4 =>
         next_message_len          := to_integer(unsigned(bus_in(4)) & unsigned(bus_in(5))); 
         next_message_data(0 to 1) := bus_in(6 to 7);
-        next_message_index := 2;
+        next_message_bytes := 2;
       when 5 =>
         next_message_len     := to_integer(unsigned(bus_in(5)) & unsigned(bus_in(6))); 
         next_message_data(0) := bus_in(7);
-        next_message_index := 1;
+        next_message_bytes := 1;
       when 6 =>
         next_message_len := to_integer(unsigned(bus_in(6)) & unsigned(bus_in(7)));
-        next_message_index := 7; -- This is 7 because [in this case only] the length bytes will not take up space on the bus
+        next_message_bytes := 8; -- This is 8 because [in this case only] the length bytes 
+                                 -- will not take up space on the next bus cycle
+      when 7 =>
+        next_message_len := to_integer(unsigned(bus_in(7)) & x"00");
+        next_message_bytes := 7; -- This is 7 because [in this case only] the length bytes 
+                                 -- will only take up 1 byte on the next bus cycle
       when others =>
         next_message_len  := 0;
         next_message_data := (others => (others => '0'));
+        next_message_bytes := 0;
     end case;
   end procedure get_next_msg_data;
 
@@ -217,62 +223,123 @@ end function is_stall_required;
 --*******************************************************************************************
 -- FUNCTION: is_last_cycle
 --*******************************************************************************************
-  function is_last_cycle(msg_len : std_logic_vector(15 downto 0);
+  function is_last_cycle(msg_len : integer;
                          bytes_captured : integer range 0 to MAX_MSG_LEN_C-1
                                   ) return boolean is
-    variable msg_len_i : integer range 0 to MAX_MSG_LEN_C-1;
+    --variable msg_len_i : integer range 0 to MAX_MSG_LEN_C-1;
     variable msg_len_minus_bytes_captured : std_logic_vector(15 downto 0);
   begin
     -- The next cycle will be the last cycle if the message length - bytes captured is <= 8. 
-    msg_len_i := to_integer(unsigned(msg_len(4 downto 0)));
-    msg_len_minus_bytes_captured := std_logic_vector(to_unsigned(msg_len_i - bytes_captured, 
+    --msg_len_i := to_integer(unsigned(msg_len(4 downto 0)));
+    msg_len_minus_bytes_captured := std_logic_vector(to_unsigned(msg_len - bytes_captured, 
                                                          msg_len_minus_bytes_captured'length-1));    
 
     return not (to_integer(unsigned(msg_len_minus_bytes_captured(7 downto 3))) = 0);
   end function is_last_cycle;
 
+----*******************************************************************************************
+---- FUNCTION: is_last_cycle
+----*******************************************************************************************
+--  function remaining_cycles(msg_len        : std_logic_vector(15 downto 0);
+--                            bytes_captured : integer range 0 to MAX_MSG_LEN_C-1
+--                                  ) return integer is
+--    variable msg_len_i : integer range 0 to MAX_MSG_LEN_C-1;
+--    variable msg_len_minus_bytes_captured : std_logic_vector(15 downto 0);
+--  begin
+--    -- The number of cycles required to get the remainder of the message is 
+--    -- (message_length - bytes_captured) / 8. 
+--    -- Divide by 8 is done by lopping off the bottom 3 bits.
+--    -- Only deal with 5 bits because the max message length is 32 (We can think of a way to make this code scalable later)
+--    msg_len_i := to_integer(unsigned(msg_len(4 downto 0))); 
+--    msg_len_minus_bytes_captured := std_logic_vector(to_unsigned(msg_len_i - bytes_captured, 
+--                                                         msg_len_minus_bytes_captured'length-1));    
+--
+--    return to_integer(unsigned(msg_len_minus_bytes_captured(4 downto 3)));
+--
+--  end function remaining_cycles;
+
+
 --*******************************************************************************************
--- FUNCTION: is_last_cycle
+-- FUNCTION: remaining_cycles
 --*******************************************************************************************
-  function remaining_cycles(msg_len        : std_logic_vector(15 downto 0);
+  function remaining_cycles(msg_len        : integer;
                             bytes_captured : integer range 0 to MAX_MSG_LEN_C-1
                                   ) return integer is
-    variable msg_len_i : integer range 0 to MAX_MSG_LEN_C-1;
+    --variable msg_len_i : integer range 0 to MAX_MSG_LEN_C-1;
     variable msg_len_minus_bytes_captured : std_logic_vector(15 downto 0);
   begin
     -- The number of cycles required to get the remainder of the message is 
     -- (message_length - bytes_captured) / 8. 
     -- Divide by 8 is done by lopping off the bottom 3 bits.
     -- Only deal with 5 bits because the max message length is 32 (We can think of a way to make this code scalable later)
-    msg_len_i := to_integer(unsigned(msg_len(4 downto 0))); 
-    msg_len_minus_bytes_captured := std_logic_vector(to_unsigned(msg_len_i - bytes_captured, 
+    --msg_len_i := to_integer(unsigned(msg_len(4 downto 0))); 
+    msg_len_minus_bytes_captured := std_logic_vector(to_unsigned(msg_len - bytes_captured, 
                                                          msg_len_minus_bytes_captured'length-1));    
 
     return to_integer(unsigned(msg_len_minus_bytes_captured(4 downto 3)));
 
   end function remaining_cycles;
 
+----*******************************************************************************************
+---- FUNCTION: calc_last_byte_cnt
+----*******************************************************************************************
+--    function calc_last_byte_cnt(msg_len        : std_logic_vector(15 downto 0);
+--                            bytes_captured : integer range 0 to MAX_MSG_LEN_C-1
+--                                  ) return integer is
+--    variable msg_len_i : integer range 0 to MAX_MSG_LEN_C-1;
+--    variable msg_len_minus_bytes_captured : std_logic_vector(15 downto 0);
+--  begin
+--    -- The number of bytes in the last cycle is 
+--    -- (message_length - bytes_captured) mod 8.
+--    -- mod 8 is done by taking the bottom 3 bits.
+--    msg_len_i := to_integer(unsigned(msg_len(4 downto 0))); 
+--    msg_len_minus_bytes_captured := std_logic_vector(to_unsigned(msg_len_i - bytes_captured, 
+--                                                         msg_len_minus_bytes_captured'length-1));    
+--
+--    return to_integer(unsigned(msg_len_minus_bytes_captured(2 downto 0)));
+--  end function calc_last_byte_cnt;
+
 --*******************************************************************************************
--- FUNCTION: is_last_cycle
+-- FUNCTION: calc_last_byte_cnt
 --*******************************************************************************************
-    function calc_last_byte_cnt(msg_len        : std_logic_vector(15 downto 0);
-                            bytes_captured : integer range 0 to MAX_MSG_LEN_C-1
+    function calc_last_byte_cnt(msg_len        : integer;
+                                bytes_captured : integer range 0 to MAX_MSG_LEN_C-1
                                   ) return integer is
-    variable msg_len_i : integer range 0 to MAX_MSG_LEN_C-1;
+    --variable msg_len_i : integer range 0 to MAX_MSG_LEN_C-1;
     variable msg_len_minus_bytes_captured : std_logic_vector(15 downto 0);
   begin
     -- The number of bytes in the last cycle is 
     -- (message_length - bytes_captured) mod 8.
     -- mod 8 is done by taking the bottom 3 bits.
-    msg_len_i := to_integer(unsigned(msg_len(4 downto 0))); 
-    msg_len_minus_bytes_captured := std_logic_vector(to_unsigned(msg_len_i - bytes_captured, 
+    --msg_len_i := to_integer(unsigned(msg_len(4 downto 0))); 
+    msg_len_minus_bytes_captured := std_logic_vector(to_unsigned(msg_len - bytes_captured, 
                                                          msg_len_minus_bytes_captured'length-1));    
 
     return to_integer(unsigned(msg_len_minus_bytes_captured(2 downto 0)));
   end function calc_last_byte_cnt;
 
 --*******************************************************************************************
--- FUNCTION: is_last_cycle
+-- FUNCTION: calc_byte_wen
+--*******************************************************************************************
+    function calc_byte_wen( bytes_captured : integer range 0 to MAX_MSG_LEN_C-1
+                          ) return std_logic_vector is
+    variable w_enable : std_logic_vector(7 downto 0);
+    variable i : integer := 0;
+  begin
+    i := 0;
+    w_enable := (others => '0');
+    while i < 8 loop 
+      if(i < bytes_captured) then
+        w_enable(i) := '1';
+      end if;
+      i := i+1;
+    end loop;
+
+    return w_enable;
+  end function calc_byte_wen;
+
+--*******************************************************************************************
+-- FUNCTION: map_msg_data
 --*******************************************************************************************
   function map_msg_data (byte_in_array : byte_array(0 to 7); 
                          start_index   : integer
@@ -291,6 +358,27 @@ end function is_stall_required;
     return byte_array_out;
 
   end function map_msg_data;
+
+----*******************************************************************************************
+---- FUNCTION: 
+----*******************************************************************************************
+--  function calc_byte_wen (byte_in_array : byte_array(0 to 7); 
+--                         start_index   : integer
+--                         ) return std_logic_vector is
+--    variable i : integer := 0;
+--    variable byte_array_out : byte_array(0 to 7) := (others => (others => '0'));
+--  begin    
+--
+--   while i < 8 loop 
+--     if(i < start_index) then
+--       byte_array_out(i) := byte_in_array(i);
+--     end if;
+--     i := i+1;
+--   end loop;
+--
+--    return byte_array_out;
+--
+--  end function calc_byte_wen;
 
   -- Signal definitions
   signal s_state       : sm_state := WAIT_SOP;
@@ -371,10 +459,10 @@ end function is_stall_required;
   signal s_wait_next_sop_b             : boolean := false;
 
   --signals for START_NEW_MESSAGE state code hiding
-  signal s_new_msg_index_i          : integer range 0 to MAX_MSG_LEN_C-1;
-  signal s_new_msg_index_i_q        : integer range 0 to MAX_MSG_LEN_C-1;
+  signal s_new_msg_bytes_i          : integer range 0 to MAX_MSG_LEN_C-1;
+  signal s_new_msg_bytes_i_q        : integer range 0 to MAX_MSG_LEN_C-1;
   signal s_new_msg_length_i         : integer range 0 to MAX_MSG_LEN_C-1;
-  signal s_new_msg_data_i           : byte_array(0 to 7);
+  signal s_new_msg_data           : byte_array(0 to 7);
   signal s_new_msg_cycle_calc_i     : integer range 0 to MAX_NUM_CYC_C-1;
   signal s_new_msg_last_byte_cnt_i  : integer range 0 to MAX_LAST_BYTE_CNT_C-1;
   signal s_new_msg_out_bytes_wen_n  : std_logic_vector(7 downto 0);
@@ -445,47 +533,58 @@ begin
     ----------------------------------------------------------------------------------------------------------
     
     new_msg_input_proc : process(all) 
+      variable v_converted_msg_len_i : integer := 0;
+      variable v_msg_len_vector      : std_logic_vector(15 downto 0);
     begin
       case s_next_msg_type_q is
         when no_length_no_data =>
-          s_new_msg_length_i         <= to_integer(unsigned(IN_DATA(63 downto 48)));
-          s_new_msg_data_i           <= map_msg_data(bus_in_array, 2);
-          s_new_msg_cycle_calc_i     <= remaining_cycles(IN_DATA(63 downto 48), 0); 
-          s_new_msg_last_byte_cnt_i  <= calc_last_byte_cnt(IN_DATA(63 downto 48), 0);
-          --s_new_msg_out_bytes_wen_n  <= 
-          --s_new_msg_mask             <= 
-          s_new_msg_no_full_cycles_b <= is_last_cycle(IN_DATA(63 downto 48), 0);
-        --when length_with_data =>
-        --  s_new_msg_length_i         <= 
-        --  s_new_msg_data_i           <= 
-        --  s_new_msg_cycle_calc_i     <= 
-        --  s_new_msg_last_byte_cnt_i  <= 
-        --  s_new_msg_out_bytes_wen_n  <= 
-        --  s_new_msg_mask             <= 
-        --  s_new_msg_no_full_cycles_b <= 
-        --when length_no_data =>
-        --  s_new_msg_length_i         <= 
-        --  s_new_msg_data_i           <= 
-        --  s_new_msg_cycle_calc_i     <= 
-        --  s_new_msg_last_byte_cnt_i  <= 
-        --  s_new_msg_out_bytes_wen_n  <= 
-        --  s_new_msg_mask             <= 
-        --  s_new_msg_no_full_cycles_b <= 
-        --when msb_length_only =>
-        --  s_new_msg_length_i         <= 
-        --  s_new_msg_data_i           <= 
-        --  s_new_msg_cycle_calc_i     <= 
-        --  s_new_msg_last_byte_cnt_i  <= 
-        --  s_new_msg_out_bytes_wen_n  <= 
-        --  s_new_msg_mask             <= 
-        --  s_new_msg_no_full_cycles_b <= 
+          v_converted_msg_len_i      := to_integer(unsigned(IN_DATA(63 downto 48)));
+
+          s_new_msg_length_i         <= v_converted_msg_len_i;
+          s_new_msg_data             <= map_msg_data(bus_in_array, 2);
+          s_new_msg_cycle_calc_i     <= remaining_cycles(v_converted_msg_len_i, 0); 
+          s_new_msg_last_byte_cnt_i  <= calc_last_byte_cnt(v_converted_msg_len_i, 0);
+          s_new_msg_out_bytes_wen_n  <= calc_byte_wen(s_new_msg_bytes_i_q); --x"3F"; -- 6 bytes of data
+          s_new_msg_mask             <= calc_mask(v_converted_msg_len_i);
+          s_new_msg_no_full_cycles_b <= is_last_cycle(v_converted_msg_len_i, 0);
+        when length_with_data =>
+          s_new_msg_length_i         <= s_next_message_len_i_q;
+          s_new_msg_data             <= s_next_message_data_q;
+          s_new_msg_cycle_calc_i     <= remaining_cycles(s_next_message_len_i_q, s_new_msg_bytes_i_q);
+          s_new_msg_last_byte_cnt_i  <= calc_last_byte_cnt(s_next_message_len_i_q, s_new_msg_bytes_i_q);
+          s_new_msg_out_bytes_wen_n  <= calc_byte_wen(s_new_msg_bytes_i_q);
+          s_new_msg_mask             <= calc_mask(s_next_message_len_i_q);
+          s_new_msg_no_full_cycles_b <= is_last_cycle(s_next_message_len_i_q, s_new_msg_bytes_i_q);
+        when length_no_data =>
+          s_new_msg_length_i         <= s_next_message_len_i_q;
+          s_new_msg_data             <= map_msg_data(bus_in_array, 0);
+          s_new_msg_cycle_calc_i     <= remaining_cycles(s_next_message_len_i_q, s_new_msg_bytes_i_q);
+          s_new_msg_last_byte_cnt_i  <= calc_last_byte_cnt(s_next_message_len_i_q, s_new_msg_bytes_i_q);
+          s_new_msg_out_bytes_wen_n  <= calc_byte_wen(s_new_msg_bytes_i_q);
+          s_new_msg_mask             <= calc_mask(s_next_message_len_i_q);
+          s_new_msg_no_full_cycles_b <= is_last_cycle(s_next_message_len_i_q, s_new_msg_bytes_i_q);
+        when msb_length_only =>
+          v_msg_len_vector           := std_logic_vector(to_unsigned(s_next_message_len_i_q, v_msg_len_vector'length)); 
+          -- Concatenate the MSB of the message length (captured on the previous bus cycle) with the LSB of the message length
+          -- Captured on the present bus cycle to get the full message length.
+          -- Note: Technically this is not necessary, since the minimum message length is 32 bytes, the MSB is never needed.
+          --       But for the sake of future expansion, it is included.
+          v_converted_msg_len_i      := to_integer(unsigned(v_msg_len_vector(15 downto 8)) & unsigned(IN_DATA(63 downto 56)));
+
+          s_new_msg_length_i         <= v_converted_msg_len_i;
+          s_new_msg_data             <= map_msg_data(bus_in_array, s_new_msg_bytes_i_q);
+          s_new_msg_cycle_calc_i     <= remaining_cycles(v_converted_msg_len_i, s_new_msg_bytes_i_q);
+          s_new_msg_last_byte_cnt_i  <= calc_last_byte_cnt(v_converted_msg_len_i, s_new_msg_bytes_i_q);
+          s_new_msg_out_bytes_wen_n  <= calc_byte_wen(s_new_msg_bytes_i_q);
+          s_new_msg_mask             <= calc_mask(v_converted_msg_len_i);
+          s_new_msg_no_full_cycles_b <= is_last_cycle(v_converted_msg_len_i, s_new_msg_bytes_i_q);
         when others =>
       end case;
     end process;
     
     -- End code hiding signals -------------------------------------------------------------------------------
 
-    OUT_VALID          <= s_out_bytes_val_q;
+    --OUT_VALID          <= s_out_bytes_val_q;
     OUT_BYTE_MASK      <= (others => '0'); -- calculate this from message size
     OUT_BYTES          <= s_payload_q;
     OUT_BYTES_WEN_N    <= s_out_bytes_wen_n_q;
@@ -522,7 +621,6 @@ begin
            s_out_bytes_val   <= '0';
            s_msg_start       <= '0';
            s_msg_done        <= '0';
-           s_out_byte_mask   <= s_out_byte_mask;
            s_next_message_len_i <= s_next_message_len_i_q;
            s_next_message_data  <= s_next_message_data_q;
            s_stall_comb         <= false;
@@ -592,8 +690,8 @@ begin
                   --                  );
                   -- s_next_message_len_i <= v_next_message_len_i;
                   -- s_next_message_data  <= v_next_message_data;
-                  -- s_new_msg_index_i    <= v_new_msg_index_i;
-                  s_new_msg_index_i    <= 6;
+                  -- s_new_msg_bytes_i    <= v_new_msg_index_i;
+                  s_new_msg_bytes_i    <= 6;
 
                   s_next_msg_type <= get_next_msg_type(s_last_byte_cnt_i_q); 
                 elsif(s_get_last_bytes_b) then
@@ -636,7 +734,7 @@ begin
                                   );
                 s_next_message_len_i <= v_next_message_len_i;
                 s_next_message_data  <= v_next_message_data;
-                s_new_msg_index_i    <= v_new_msg_index_i;
+                s_new_msg_bytes_i    <= v_new_msg_index_i;
 
                 s_next_msg_type <= get_next_msg_type(s_last_byte_cnt_i_q);
 
@@ -673,8 +771,8 @@ begin
 
                 i := 0;
                 while i < 8 loop 
-                  if(i <= s_new_msg_index_i) then
-                    s_payload(i) <= s_new_msg_data_i(i);
+                  if(i <= s_new_msg_bytes_i_q) then
+                    s_payload(i) <= s_new_msg_data(i);
                   end if;
                   i := i+1;
                 end loop;
@@ -724,7 +822,7 @@ begin
             s_next_message_data_q   <= (others => (others => '0'));
             s_stall_comb_save_q     <= false;
             s_next_msg_type_q       <= dont_care;
-            s_new_msg_index_i_q     <= 0;
+            s_new_msg_bytes_i_q     <= 0;
           elsif rising_edge(CLK) then 
             s_state_q           <= s_state  ;  
             s_nxt_state_ptr_q   <= s_nxt_state_ptr;          
@@ -743,7 +841,7 @@ begin
             s_next_message_data_q   <= s_next_message_data;
             s_stall_comb_save_q     <= s_stall_comb_save;
             s_next_msg_type_q       <= s_next_msg_type;
-            s_new_msg_index_i_q     <= s_new_msg_index_i;
+            s_new_msg_bytes_i_q     <= s_new_msg_bytes_i;
           end if; 
     end process rcv_sm_reg;
 
