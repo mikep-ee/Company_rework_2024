@@ -16,6 +16,7 @@ use work.pkg_company_rework_types.all;
 - Sythesize:
   - While loop as an experiment
   - Sythesize message message_receiver
+  - When working use Git to label the working version
 - refactor message_receiver or continue with other modules 
     (Refactor is probably best. The point is to practice, not finish the code)
 - <Remember to use git as necessary and for practice. Try some things out.>
