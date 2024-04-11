@@ -818,7 +818,7 @@ begin
 
           if RESET_N = '0' then
             s_state_q           <= WAIT_SOP;  
-            s_nxt_state_ptr     <= WAIT_SOP;         
+            s_nxt_state_ptr_q   <= WAIT_SOP;         
             s_msg_cnt_i_q       <= 0;
             s_msg_len_i_q       <= 0;
             s_payload_q         <= (others => (others => '0'));
@@ -829,7 +829,7 @@ begin
             s_out_bytes_val_q   <= '0';
             s_msg_start_q       <= '0';
             s_msg_done_q        <= '0';
-            s_cyc_cnt_i         <= 0;
+            s_cyc_cnt_i_q       <= 0;
             s_next_message_len_i_q  <= 0;
             s_next_message_data_q   <= (others => (others => '0'));
             s_stall_comb_save_q     <= false;
@@ -848,7 +848,7 @@ begin
             s_out_bytes_val_q   <= s_out_bytes_val;
             s_msg_start_q       <= s_msg_start;
             s_msg_done_q        <= s_msg_done;
-            s_cyc_cnt_i         <= s_cyc_cnt_i_q;
+            s_cyc_cnt_i_q       <= s_cyc_cnt_i;
             S_next_message_len_i_q  <= s_next_message_len_i;
             s_next_message_data_q   <= s_next_message_data;
             s_stall_comb_save_q     <= s_stall_comb_save;

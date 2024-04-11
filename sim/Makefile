@@ -1,7 +1,7 @@
 XVHDL=xvhdl
 XVHDLFLAGS= --2008
 XELAB=xelab
-XELABFLAGS= -top
+XELABFLAGS= -debug typical -top 
 XSIM=xsim
 XSIMFLAGS= --runall
 SRC_PATH=../src/
@@ -20,7 +20,7 @@ BEHAV_MODULES=\
 	$(SRC_PATH)pkg_company_rework_types.vhdl \
     $(SRC_PATH)data_shifter_reg_feeder_behav.vhdl \
     $(SRC_PATH)data_shifter_reg_behav.vhdl \
-    $(SRC_PATH)message_receiver_behav.vhdl \
+    $(SRC_PATH)message_receiver.vhdl \
 	$(SRC_PATH)output_shift_mux_behav.vhdl \
 	$(SRC_PATH)output_shift_mux_wrapper_behav.vhdl \
 	$(SRC_PATH)company_rework_2024_top.vhdl \
@@ -28,7 +28,7 @@ BEHAV_MODULES=\
 	$(SRC_PATH)tb_message_receiver.vhd
 
 TESTBENCH=tb_message_receiver
-TOPMODULE=message_receiver_behav
+TOPMODULE=message_receiver
 #GTKWAVE=/C/Users/mpaul/Documents/gtkwave-3.3.100-bin-win32/gtkwave/bin/gtkwave.exe
 #WAVEFILE=tb_wave.vcd
 
@@ -52,7 +52,8 @@ behav: $(BEHAV_MODULES)
 #	@echo "Elaborating Files..."
 #	$(GHDL) -e $(GHDLFLAGS) $(TESTBENCH)
 #
-elaborate:
+#elaborate
+elab:
 	@echo "Elaborating Files..."
 	$(XELAB) -$(XELABFLAGS) $(TOPMODULE) -snapshot $(TESTBENCH)
 
