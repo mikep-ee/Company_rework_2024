@@ -1,9 +1,9 @@
 --------------------------------------------------------------------------------
 --
--- File: test_bench_sink_module.vhd
+-- File: tb_message_receiver.vhd
 
 -- Description: 
--- This bench is a self checking module that excercises the sink_module.vhd
+-- This bench is a self checking module that excercises the tb_message_receiver.vhd
 -- design.
 -- 
 --
@@ -18,10 +18,10 @@ use work.pkg_company_rework_types.all; -- defined types
 use work.pkg_sink_test_vectors.all; -- defined test vectors
 
 
-entity test_bench_sink_module is
-end test_bench_sink_module ;
+entity tb_message_receiver is
+end tb_message_receiver ;
 
-architecture behav of test_bench_sink_module is
+architecture behav of tb_message_receiver is
 
   component message_receiver is
     port (
