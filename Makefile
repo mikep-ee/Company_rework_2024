@@ -17,7 +17,9 @@ BEHAV_MODULES=\
     message_receiver_behav.vhdl \
 	output_shift_mux_behav.vhdl \
 	output_shift_mux_wrapper_behav.vhdl \
-	company_rework_2024_top.vhdl
+	company_rework_2024_top.vhdl \
+	pkg_sink_test_vectors.vhd \
+	test_bench_sink_module.vhd
 
 #TESTBENCH=tb_sink_module
 #GTKWAVE=/C/Users/mpaul/Documents/gtkwave-3.3.100-bin-win32/gtkwave/bin/gtkwave.exe
@@ -51,6 +53,9 @@ behav: $(BEHAV_MODULES)
 #	@echo "Running GTKWAVE"
 #	$(GTKWAVE) $(WAVEFILE) &
 #
+#run_tb:
+#	@echo "Running testbench..."
+#	$(GHDL) -r $(GHDLFLAGS) $(TESTBENCH) --vcd=$(WAVEFILE)
 #run_tb:
 #	@echo "Running testbench..."
 #	$(GHDL) -r $(GHDLFLAGS) $(TESTBENCH) --vcd=$(WAVEFILE)
