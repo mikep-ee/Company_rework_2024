@@ -26,28 +26,29 @@ entity message_receiver is
         CLK                : in  std_logic;
         RESET_N            : in  std_logic;
         
-        IN_VALID           : in  std_logic; -- For now, assume IN_VALID is only asserted as a result of 
-                                           -- bus stall initiated by me. So, no need to monitor IN_VALID
-        IN_START_OF_PACKET : in  std_logic;
-        IN_END_OF_PACKET   : in  std_logic;
-        IN_DATA            : in  std_logic_vector(63 downto 0);
-        IN_EMPTY           : in  std_logic_vector(2 downto 0);
-        IN_ERROR           : in  std_logic;
+          IN_VALID           : in  std_logic; -- For now, assume IN_VALID is only asserted as a result of 
+                                             -- bus stall initiated by me. So, no need to monitor IN_VALID
+          IN_START_OF_PACKET : in  std_logic;
+          IN_END_OF_PACKET   : in  std_logic;
+          IN_DATA            : in  std_logic_vector(63 downto 0);
+          IN_EMPTY           : in  std_logic_vector(2 downto 0);
+          IN_ERROR           : in  std_logic;
    
-        IN_READY           : IN   std_logic; -- Ready from module being fed OUT_BYTES
-        OUT_READY          : OUT  std_logic; -- Ready to the top level module
-        --OUT_VALID          : OUT  std_logic;
-        OUT_BYTE_MASK      : OUT  std_logic_vector(31 downto 0);
+          IN_READY           : IN   std_logic; -- Ready from module being fed OUT_BYTES
+          OUT_READY          : OUT  std_logic; -- Ready to the top level module
+          --OUT_VALID          : OUT  std_logic;
+          OUT_BYTE_MASK      : OUT  std_logic_vector(31 downto 0);
 
-        OUT_BYTES          : OUT  byte_array(0 to 7);
-        OUT_BYTES_WEN_N    : OUT  std_logic_vector(7 downto 0);
-        OUT_BYTES_VAL      : OUT  std_logic;
-        --MAX_BYTE_CNT       : OUT  std_logic_vector(2 downto 0);
-        MSG_START          : OUT  std_logic;
-        MSG_DONE           : OUT  std_logic;
+          OUT_BYTES          : OUT  byte_array(0 to 7);
+          OUT_BYTES_WEN_N    : OUT  std_logic_vector(7 downto 0);
+          OUT_BYTES_VAL      : OUT  std_logic;
+          --MAX_BYTE_CNT       : OUT  std_logic_vector(2 downto 0);
+          MSG_START          : OUT  std_logic;
+          MSG_DONE           : OUT  std_logic;
         LAST_BYTE_CNT      : OUT  std_logic_vector(2 downto 0)
     );
   end entity message_receiver;
+
 
 architecture behav of message_receiver is
   -- Type definitions
@@ -102,7 +103,7 @@ architecture behav of message_receiver is
                                 s_payload : out byte_array(0 to 7)
                                 ) is
     variable i : integer := 0;
-    --variable w_en : std_logic_vector(s_out_bytes_wen_n'length-1 downto 0);
+    --variable w_en : std_logic_vector(s_out_bytes_wen_n'length downto 0);
   begin
 
     i    := 1;
@@ -244,7 +245,7 @@ end function is_stall_required;
     -- The next cycle will be the last cycle if the message length - bytes captured is <= 8. 
     --msg_len_i := to_integer(unsigned(msg_len(4 downto 0)));
     msg_len_minus_bytes_captured := std_logic_vector(to_unsigned(msg_len - bytes_captured, 
-                                                         msg_len_minus_bytes_captured'length-1));    
+                                                         msg_len_minus_bytes_captured'length));    
 
     return not (to_integer(unsigned(msg_len_minus_bytes_captured(7 downto 3))) = 0);
   end function is_last_cycle;
@@ -264,7 +265,7 @@ end function is_stall_required;
 --    -- Only deal with 5 bits because the max message length is 32 (We can think of a way to make this code scalable later)
 --    msg_len_i := to_integer(unsigned(msg_len(4 downto 0))); 
 --    msg_len_minus_bytes_captured := std_logic_vector(to_unsigned(msg_len_i - bytes_captured, 
---                                                         msg_len_minus_bytes_captured'length-1));    
+--                                                         msg_len_minus_bytes_captured'length));    
 --
 --    return to_integer(unsigned(msg_len_minus_bytes_captured(4 downto 3)));
 --
@@ -286,7 +287,7 @@ end function is_stall_required;
     -- Only deal with 5 bits because the max message length is 32 (We can think of a way to make this code scalable later)
     --msg_len_i := to_integer(unsigned(msg_len(4 downto 0))); 
     msg_len_minus_bytes_captured := std_logic_vector(to_unsigned(msg_len - bytes_captured, 
-                                                         msg_len_minus_bytes_captured'length-1));    
+                                                         msg_len_minus_bytes_captured'length));    
 
     return to_integer(unsigned(msg_len_minus_bytes_captured(4 downto 3)));
 
@@ -306,7 +307,7 @@ end function is_stall_required;
 --    -- mod 8 is done by taking the bottom 3 bits.
 --    msg_len_i := to_integer(unsigned(msg_len(4 downto 0))); 
 --    msg_len_minus_bytes_captured := std_logic_vector(to_unsigned(msg_len_i - bytes_captured, 
---                                                         msg_len_minus_bytes_captured'length-1));    
+--                                                         msg_len_minus_bytes_captured'length));    
 --
 --    return to_integer(unsigned(msg_len_minus_bytes_captured(2 downto 0)));
 --  end function calc_last_byte_cnt;
@@ -325,7 +326,7 @@ end function is_stall_required;
     -- mod 8 is done by taking the bottom 3 bits.
     --msg_len_i := to_integer(unsigned(msg_len(4 downto 0))); 
     msg_len_minus_bytes_captured := std_logic_vector(to_unsigned(msg_len - bytes_captured, 
-                                                         msg_len_minus_bytes_captured'length-1));    
+                                                         msg_len_minus_bytes_captured'length));    
 
     return to_integer(unsigned(msg_len_minus_bytes_captured(2 downto 0)));
   end function calc_last_byte_cnt;
@@ -515,7 +516,7 @@ begin
     -- Subtracts 4 from the message length, since 4 bytes are read on the SOP cycle
     -- Signal is only valid in the WAIT_SOP state
     s_msg_len_minus_4 <= std_logic_vector(
-                              to_unsigned( (s_msg_len_from_data_bus_i - 4), s_msg_len_minus_4'length-1)); 
+                              to_unsigned( (s_msg_len_from_data_bus_i - 4), s_msg_len_minus_4'length)); 
     
     -- Checks the message length (-4) divided by 8 (bottom 3 bits lopped off); This is the number of 8 byte bus
     -- cycles required to get the entire message. If 0, then the message is less than 8 bytes. So
@@ -821,7 +822,7 @@ begin
             s_nxt_state_ptr_q   <= WAIT_SOP;         
             s_msg_cnt_i_q       <= 0;
             s_msg_len_i_q       <= 0;
-            s_payload_q         <= (others => (others => '0'));
+            s_payload_q         <= (others => (others => '1'));
             s_num_cycles_i_q    <= 0;
             s_last_byte_cnt_i_q <= 0; 
             s_out_byte_mask_q   <= (others => '0');

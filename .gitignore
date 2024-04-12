@@ -2,3 +2,7 @@
 xsim.dir/
 *.log
 *.pb
+*.wdb
+*.jou
+*.backup.jou
+*.wdb

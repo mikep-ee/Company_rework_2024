@@ -33,7 +33,8 @@ TOPMODULE=message_receiver
 #WAVEFILE=tb_wave.vcd
 
 # Binary depends on the object file mp
-all: clean compile elaborate run
+#all: clean behav elaborate run
+all: clean behav elab run
 
 # Object file depends on source
 compile: $(MODULES)
@@ -60,7 +61,16 @@ elab:
 
 run: 
 	@echo "Running testbench..."
-	$(XSIM) -snapshot $(TESTBENCH)
+	$(XSIM) $(TESTBENCH) -runall
+
+run_wave: 
+	@echo "Running testbench with waveforms..."
+	$(XSIM) $(TESTBENCH) --tclbatch xsim_cfg.tcl
+
+wave: 
+	@echo "Running Wave..."
+	$(XSIM) --gui tb_message_receiver.wdb &
+#$(XSIM) --gui $(TESTBENCH).wdb &
 
 
 #wave: 
@@ -75,3 +85,7 @@ run:
 #clean:
 #	@echo "Cleaning up..."
 #	rm -f *.o *.exe work*.cf *.vcd
+
+clean:
+	@echo "Cleaning up..."
+	rm -f *.jou *.dmp *.pb *.log *.wdb ./xsim.dir/work/*.*
