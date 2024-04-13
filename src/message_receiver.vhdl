@@ -53,8 +53,7 @@ entity message_receiver is
 architecture behav of message_receiver is
   -- Type definitions
   --type bus_in is array(0 to 7) of std_logic_vector(7 downto 0);
-  type sm_state is (WAIT_SOP, GET_DATA, LAST_CYCLE, STALL, STALL_AND_OUTPUT_DATA, 
-                    GET_LSB_LEN_AND_DATA, START_NEW_MESSAGE);
+  type sm_state is (WAIT_SOP, GET_DATA, LAST_CYCLE, STALL, STALL_AND_OUTPUT_DATA, START_NEW_MESSAGE);
 
   type msg_type_t is (no_length_no_data, length_no_data, length_with_data, msb_length_only, dont_care);
 
@@ -144,31 +143,34 @@ architecture behav of message_receiver is
         next_message_bytes := 6; -- Since there are no length bytes, 2 bytes will take up space on the bus.
                                  -- which leaves space for 6 bytes of data.
       when 1 =>        
-        next_message_len          := to_integer(unsigned(bus_in(1)) & unsigned(bus_in(2)));
-        next_message_data(0 to 4) := bus_in(3 to 7);
+        next_message_len          := to_integer(unsigned(bus_in(6)) & unsigned(bus_in(5)));
+        next_message_data(3 to 7) := bus_in(0 to 4);
         next_message_bytes := 5;
       when 2 =>
-        next_message_len          := to_integer(unsigned(bus_in(2)) & unsigned(bus_in(3))); 
-        next_message_data(0 to 3) := bus_in(4 to 7);
+        next_message_len          := to_integer(unsigned(bus_in(5)) & unsigned(bus_in(4))); 
+        next_message_data(4 to 7) := bus_in(0 to 3);
         next_message_bytes := 4;
       when 3 =>
-        next_message_len          := to_integer(unsigned(bus_in(3)) & unsigned(bus_in(4)));
-        next_message_data(0 to 2) := bus_in(5 to 7);
+        next_message_len          := to_integer(unsigned(bus_in(4)) & unsigned(bus_in(3)));
+        next_message_data(5 to 7) := bus_in(0 to 2);
         next_message_bytes := 3;
       when 4 =>
-        next_message_len          := to_integer(unsigned(bus_in(4)) & unsigned(bus_in(5))); 
-        next_message_data(0 to 1) := bus_in(6 to 7);
+        next_message_len          := to_integer(unsigned(bus_in(3)) & unsigned(bus_in(2))); 
+        --next_message_data(6 to 7) := bus_in(0 to 1);
+        --next_message_data(7) := bus_in(1);
+        --next_message_data(6) := bus_in(0);
+        next_message_data(7 from 6) := bus_in(0 to 1);
         next_message_bytes := 2;
       when 5 =>
-        next_message_len     := to_integer(unsigned(bus_in(5)) & unsigned(bus_in(6))); 
-        next_message_data(0) := bus_in(7);
+        next_message_len     := to_integer(unsigned(bus_in(2)) & unsigned(bus_in(1))); 
+        next_message_data(7) := bus_in(0);
         next_message_bytes := 1;
       when 6 =>
-        next_message_len := to_integer(unsigned(bus_in(6)) & unsigned(bus_in(7)));
+        next_message_len := to_integer(unsigned(bus_in(1)) & unsigned(bus_in(0)));
         next_message_bytes := 8; -- This is 8 because [in this case only] the length bytes 
                                  -- will not take up space on the next bus cycle
       when 7 =>
-        next_message_len := to_integer(unsigned(bus_in(7)) & x"00");
+        next_message_len := to_integer(unsigned(bus_in(0)) & x"00");
         next_message_bytes := 7; -- This is 7 because [in this case only] the length bytes 
                                  -- will only take up 1 byte on the next bus cycle
       when others =>
@@ -394,7 +396,7 @@ end function is_stall_required;
 --  end function calc_byte_wen;
 
   -- Signal definitions
-  signal s_state       : sm_state := WAIT_SOP;
+  --signal s_state       : sm_state := WAIT_SOP;
   signal s_state_q     : sm_state;
   signal s_nxt_state   : sm_state;  
   --signal s_nxt_state_q : sm_state; 
@@ -500,10 +502,10 @@ end function is_stall_required;
     
     -- Checks the message length (-4) divided by 8 (bottom 3 bits lopped off); This is the number of 8 byte bus
     -- cycles required to get the entire message. If 0, then the message is less than 8 bytes. So
-    -- the next cycle will be the last cycle.
+    -- the next cycle will be the last cycle (i.e. no full 8 byte cycle)
     -- Only 5 bits are checked because the max message length is 32
     -- Signal is only valid in the WAIT_SOP state
-    s_no_full_cycles_b <= not (to_integer(unsigned(s_msg_len_minus_4(4 downto 3))) = 0);    
+    s_no_full_cycles_b <= (to_integer(unsigned(s_msg_len_minus_4(4 downto 3))) = 0);    
 
     -- The number of cycles required to get the entire message is calculated by dividing the message length-4
     -- (Because 4 bytes are read on the SOP cycle) by 8; the bottom 3 bits are lopped off to perform the divide by 8.
@@ -620,7 +622,7 @@ end function is_stall_required;
 
        begin
            -- Default assignments
-           s_state           <= s_state_q;
+           s_nxt_state       <= s_state_q;
            s_nxt_state_ptr   <= s_nxt_state_ptr_q;
            s_payload         <= s_payload_q;
            s_msg_cnt_i       <= s_msg_cnt_i_q;
@@ -836,7 +838,7 @@ end function is_stall_required;
             s_next_msg_type_q       <= dont_care;
             s_new_msg_bytes_i_q     <= 0;
           elsif rising_edge(CLK) then 
-            s_state_q           <= s_state  ;  
+            s_state_q           <= s_nxt_state  ;  
             s_nxt_state_ptr_q   <= s_nxt_state_ptr;          
             s_msg_cnt_i_q       <= s_msg_cnt_i;
             s_msg_len_i_q       <= s_msg_len_i;
