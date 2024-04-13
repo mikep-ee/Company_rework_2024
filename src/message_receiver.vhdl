@@ -457,9 +457,9 @@ end function is_stall_required;
   signal s_calc_bytes_in_last_cycle_i  : integer range 0 to MAX_LAST_BYTE_CNT_C-1;
 
   --signals for LAST_CYCLE state code hiding
-  signal s_last_cycle_bytes             : byte_array(0 to 7);
-  signal s_last_cycle_bytes_wen_n       : std_logic_vector(7 downto 0);
-  signal s_last_cycle_out_bytes_val     : std_logic; 
+  --signal s_last_cycle_bytes             : byte_array(0 to 7);
+  --signal s_last_cycle_bytes_wen_n       : std_logic_vector(7 downto 0);
+  --signal s_last_cycle_out_bytes_val     : std_logic; 
 
   --signals for GET_DATA state code hiding
   signal s_last_full_cycle_b           : boolean := false;
@@ -472,38 +472,18 @@ end function is_stall_required;
   signal s_wait_next_sop_b             : boolean := false;
 
   --signals for START_NEW_MESSAGE state code hiding
-  signal s_new_msg_bytes_i          : integer range 0 to MAX_MSG_LEN_C-1;
-  signal s_new_msg_bytes_i_q        : integer range 0 to MAX_MSG_LEN_C-1;
-  signal s_new_msg_length_i         : integer range 0 to MAX_MSG_LEN_C-1;
-  signal s_new_msg_data           : byte_array(0 to 7);
-  signal s_new_msg_cycle_calc_i     : integer range 0 to MAX_NUM_CYC_C-1;
-  signal s_new_msg_last_byte_cnt_i  : integer range 0 to MAX_LAST_BYTE_CNT_C-1;
-  signal s_new_msg_out_bytes_wen_n  : std_logic_vector(7 downto 0);
-  signal s_new_msg_mask             : std_logic_vector(31 downto 0);
-  signal s_new_msg_no_full_cycles_b : boolean := false;
-
-  
-begin    
-
-    map_inbus : process(all)
-         variable i : integer := 0;
-       begin
-          while i < 8 loop
-            bus_in_array(i) <= IN_DATA(63-(8*i) downto 56-(8*i));
-            i := i + 1;
-          end loop; 
-       end process map_inbus;
-
-    --Convert single bit indicators to boolean
-    s_in_error_b <= (IN_ERROR           = '1');
-    s_in_ready_b <= (IN_READY           = '1');
-    s_in_sop_b   <= (IN_START_OF_PACKET = '1');
-    s_in_eop_b   <= (IN_END_OF_PACKET   = '1');
-
-    ----------------------------------------------------------------------------------------------------------
-    -- These signals were created to hide code and make the flow of the state machine easier to read.
+  signal s_new_msg_bytes_i          : integer range 0 to MAX_MSG_LEN_C-1       := 0;
+  signal s_new_msg_bytes_i_q        : integer range 0 to MAX_MSG_LEN_C-1       := 0;
+  signal s_new_msg_length_i         : integer range 0 to MAX_MSG_LEN_C-1       := 0;
+  signal s_new_msg_data             : byte_array(0 to 7)                       := (others => (others => '0'));
+  signal s_new_msg_cycle_calc_i     : integer range 0 to MAX_NUM_CYC_C-1       := 0;
+  signal s_new_msg_last_byte_cnt_i  : integer range 0 to MAX_LAST_BYTE_CNT_C-1 := 0;
+  signal s_new_msg_out_bytes_wen_n  : std_logic_vector(7 downto 0)             := (others => '0');
+  signal s_new_msg_mask             : std_logic_vector(31 downto 0)            := (others => '0');
+  signal s_new_msg_no_full_cycles_b : boolean                                  := false;
     ----------------------------------------------------------------------------------------------------------
 
+  begin
     ----------------------------------------------------------------------------------------------------------
     -- WAIT_SOP state signals to hide code
     ----------------------------------------------------------------------------------------------------------
@@ -531,6 +511,9 @@ begin
     -- The number of bytes in the last cycle is calculated by taking the message length-4 mod 8
     s_calc_bytes_in_last_cycle_i  <= to_integer(unsigned(s_msg_len_minus_4(2 downto 0)));
 
+    s_in_sop_b   <= IN_START_OF_PACKET = '1';
+    s_in_eop_b   <= IN_END_OF_PACKET   = '1';
+    s_in_error_b <= IN_ERROR           = '1';
    ----------------------------------------------------------------------------------------------------------
     -- GET_DATA state signals to hide code
     ----------------------------------------------------------------------------------------------------------
@@ -597,6 +580,22 @@ begin
     
     -- End code hiding signals -------------------------------------------------------------------------------
 
+    map_proc_bus_in : process(all)
+    begin
+      -- Map the input data bus to an array of bytes
+      for i in 0 to 7 loop
+        bus_in_array(i) <= IN_DATA((i+1)*8-1 downto i*8);
+      end loop;
+    end process map_proc_bus_in;
+    --bus_in_array(0) <= IN_DATA(7 downto 0);
+    --bus_in_array(1) <= IN_DATA(15 downto 8);
+    --bus_in_array(2) <= IN_DATA(23 downto 16);
+    --bus_in_array(3) <= IN_DATA(31 downto 24);
+    --bus_in_array(4) <= IN_DATA(39 downto 32);
+    --bus_in_array(5) <= IN_DATA(47 downto 40);
+    --bus_in_array(6) <= IN_DATA(55 downto 48);
+    --bus_in_array(7) <= IN_DATA(63 downto 56);
+
     --OUT_VALID          <= s_out_bytes_val_q;
     OUT_BYTE_MASK      <= (others => '0'); -- calculate this from message size
     OUT_BYTES          <= s_payload_q;
@@ -621,7 +620,7 @@ begin
 
        begin
            -- Default assignments
-           s_state           <= WAIT_SOP;
+           s_state           <= s_state_q;
            s_nxt_state_ptr   <= s_nxt_state_ptr_q;
            s_payload         <= s_payload_q;
            s_msg_cnt_i       <= s_msg_cnt_i_q;
@@ -645,7 +644,7 @@ begin
                 s_msg_len_i <= s_msg_len_from_data_bus_i; 
 
                 i := 0;
-                while i < 3 loop                                
+                while i < 4 loop                                
                   s_payload(i) <= bus_in_array(3-i);
                   i := i+1;
                 end loop;
@@ -673,7 +672,7 @@ begin
                 i := 0;
 
                 --Copy the payload data
-                while i < 7 loop                                
+                while i < 8 loop                                
                   s_payload(i) <= bus_in_array(7-i);
                   i := i+1;
                 end loop;

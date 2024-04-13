@@ -83,12 +83,12 @@ package pkg_sink_test_vectors is
   constant C_CNT_LO_BIT   : integer := 44 ; 
   constant C_READY_BIT    : integer := 43 ; 
   constant C_MASK_HI_BIT  : integer := 42 ; 
-  constant C_MASK_LO_BIT  : integer := 12 ; 
-  constant C_WEN_HI_BIT   : integer := 11 ;
-  constant C_WEN_LO_BIT   : integer :=  4 ; 
-  constant C_BVAL_BIT     : integer :=  3 ; 
-  constant C_START_BIT    : integer :=  2 ; 
-  constant C_DONE_BIT     : integer :=  1 ;
+  constant C_MASK_LO_BIT  : integer := 11 ; 
+  constant C_WEN_HI_BIT   : integer := 10 ;
+  constant C_WEN_LO_BIT   : integer :=  3 ; 
+  constant C_BVAL_BIT     : integer :=  2 ; 
+  constant C_START_BIT    : integer :=  1 ; 
+  constant C_DONE_BIT     : integer :=  0 ;
 
 constant OUT_VECTOR_START_MSG_1 : sink_vect_out_validate := 
   (
