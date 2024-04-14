@@ -53,7 +53,7 @@ entity message_receiver is
 architecture behav of message_receiver is
   -- Type definitions
   --type bus_in is array(0 to 7) of std_logic_vector(7 downto 0);
-  type sm_state is (WAIT_SOP, GET_DATA, LAST_CYCLE, INTERNAL_STALL, STALL_AND_OUTPUT_DATA, START_NEW_MESSAGE);
+  type sm_state is (WAIT_SOP, GET_DATA, LAST_CYCLE, EXTERNAL_STALL, INTERNAL_STALL, START_NEW_MESSAGE);
 
   type msg_type_t is (no_length_no_data, length_no_data, length_with_data, msb_length_only, dont_care);
 
@@ -748,9 +748,10 @@ end function is_stall_required;
                   -- s_next_message_len_i <= v_next_message_len_i;
                   -- s_next_message_data  <= v_next_message_data;
                   -- s_new_msg_bytes_i    <= v_new_msg_index_i;
-                  s_new_msg_bytes_i    <= 6;
 
-                  s_next_msg_type <= get_next_msg_type(s_last_byte_cnt_i_q); 
+                  -- New message mux inputs
+                  s_new_msg_bytes_i  <= 6; -- Mux input
+                  s_next_msg_type    <= get_next_msg_type(s_last_byte_cnt_i_q); --mux select
                 elsif(s_get_last_bytes_b) then
                   
                   s_nxt_state     <= LAST_CYCLE; -- Last cycle with less than 8 bytes
@@ -767,11 +768,13 @@ end function is_stall_required;
                 end if;
 
                 if(not s_in_ready_b) then
-                  s_nxt_state     <= INTERNAL_STALL;    -- Override next state, if not ready
+                  s_nxt_state     <= EXTERNAL_STALL;    -- Override next state, if not ready
                                                -- The s_next_state_ptr will know where to
                                                -- go after the stall                 
                 end if;                  
-
+              --*******************************************************************************************
+              -- STATE: LAST_CYCLE
+              --*******************************************************************************************
               when LAST_CYCLE =>
                
                 s_msg_done        <= '1'; -- Message is done
@@ -795,21 +798,28 @@ end function is_stall_required;
 
                 s_next_msg_type <= get_next_msg_type(s_last_byte_cnt_i_q);
 
-Write the function "get_next_state" (Need to account for STALL_AND_OUTPUT_DATA state) => check the commented out function already written
-Write the STALL_AND_OUTPUT_DATA (now called EXTERNAL_STALL state)
-                s_nxt_state     <= get_next_state(s_in_eop_b, get_next_msg_type(s_last_byte_cnt_i_q));
+               -- s_nxt_state     <= get_next_state(s_in_eop_b, get_next_msg_type(s_last_byte_cnt_i_q));
                 --s_nxt_state     <= WAIT_SOP when s_in_eop_b else START_NEW_MESSAGE;
-                s_nxt_state_ptr <= get_next_state(s_in_eop_b, get_next_msg_type(s_last_byte_cnt_i_q));
+                --s_nxt_state_ptr <= get_next_state(s_in_eop_b, get_next_msg_type(s_last_byte_cnt_i_q));
                 s_stall_comb    <= is_stall_required(s_last_byte_cnt_i_q);
                                                  -- combinatorial output allows the next message data to be output
                                                  -- in the STALL_AND_OUTPUT_DATA state without losing the next 
                                                  -- cycle's data
+                if( s_in_eop_b ) then
+                  s_nxt_state <= WAIT_SOP;
+                elsif ( is_stall_required(s_last_byte_cnt_i_q) ) then
+                  s_nxt_state     <= INTERNAL_STALL;
+                  s_nxt_state_ptr <= INTERNAL_STALL;
+                else
+                  s_nxt_state     <= START_NEW_MESSAGE;
+                  s_nxt_state_ptr <= START_NEW_MESSAGE;
+                end if;
 
-                -- Override the next state if any of the following conditions are met                
+                -- Override the next state and cancel stall (if nec.) if not ready or in error               
                 if(s_in_error_b) then
                   s_nxt_state <= WAIT_SOP; -- Assume entire message is bad
                 elsif(not s_in_ready_b) then                  
-                  s_nxt_state     <= INTERNAL_STALL; -- Override next state, if not ready
+                  s_nxt_state     <= EXTERNAL_STALL; -- Override next state, if not ready
                                             -- The s_next_state_ptr will know where to
                                             -- go after the stall 
                   s_stall_comb      <= false; -- Cancel the combinatorial stall (if set)                      
@@ -821,14 +831,38 @@ Write the STALL_AND_OUTPUT_DATA (now called EXTERNAL_STALL state)
                 if(s_in_error_b) then
                   s_nxt_state <= WAIT_SOP; -- Assume entire message is bad
                 elsif(not s_in_ready_b) then
-                  s_nxt_state       <= INTERNAL_STALL; 
+                  s_nxt_state       <= EXTERNAL_STALL; 
                 else   
                   s_nxt_state  <= s_nxt_state_ptr_q; -- Go back to designated next state, before stall 
                   s_stall_comb <= s_stall_comb_save_q;                  
                 end if;
 
               when INTERNAL_STALL =>
+                -- Stall caused by this module to output data 
+                s_msg_len_i       <= s_next_message_len_i_q;
+                s_payload         <= s_next_message_data_q;
+                s_num_cycles_i    <= remaining_cycles(s_next_message_len_i_q, s_new_msg_bytes_i_q);
+                s_last_byte_cnt_i <= calc_last_byte_cnt(s_next_message_len_i_q, s_new_msg_bytes_i_q);
                 
+                s_out_bytes_wen_n <= calc_byte_wen(s_new_msg_bytes_i_q);
+                s_out_byte_mask   <= calc_mask(s_msg_len_from_data_bus_i);
+                
+                if(s_in_error_b) then
+                  s_nxt_state <= WAIT_SOP; -- Assume entire message is bad
+                elsif(not s_in_ready_b) then
+                  s_nxt_state       <= EXTERNAL_STALL;
+                else
+                  s_out_bytes_val   <= '1'; -- Output (payload) data is now valid
+                  s_msg_start       <= '1'; -- Start of message  
+                  s_cyc_cnt_i       <=  1 ; --Initialize cycle counter
+
+                  if( is_last_cycle(s_next_message_len_i_q, s_new_msg_bytes_i_q) ) then 
+                    s_nxt_state <= LAST_CYCLE; --Last cycle with less than 8 bytes
+                  else
+                    s_nxt_state <= GET_DATA; -- Cycle with 8 bytes of data       
+                  end if;               
+                end if;
+               
               when START_NEW_MESSAGE =>                
                 s_msg_len_i <= s_new_msg_length_i; 
 
