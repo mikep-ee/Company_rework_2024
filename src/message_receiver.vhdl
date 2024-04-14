@@ -53,7 +53,7 @@ entity message_receiver is
 architecture behav of message_receiver is
   -- Type definitions
   --type bus_in is array(0 to 7) of std_logic_vector(7 downto 0);
-  type sm_state is (WAIT_SOP, GET_DATA, LAST_CYCLE, STALL, STALL_AND_OUTPUT_DATA, START_NEW_MESSAGE);
+  type sm_state is (WAIT_SOP, GET_DATA, LAST_CYCLE, INTERNAL_STALL, STALL_AND_OUTPUT_DATA, START_NEW_MESSAGE);
 
   type msg_type_t is (no_length_no_data, length_no_data, length_with_data, msb_length_only, dont_care);
 
@@ -101,17 +101,26 @@ architecture behav of message_receiver is
                                 s_out_bytes_wen_n : out std_logic_vector(7 downto 0);
                                 s_payload : out byte_array(0 to 7)
                                 ) is
-    variable i : integer := 0;
+    --variable i : integer := 0;
     --variable w_en : std_logic_vector(s_out_bytes_wen_n'length downto 0);
   begin
 
-    i    := 1;
-    while i <= 8 loop
-      if(i /= 0) then
-        s_payload(i-1) := bus_in(8-i);
-        s_out_bytes_wen_n(i-1) := '1';     
+    --i    := 1;
+    --while i <= 8 loop
+    --  if(i /= 0) then
+    --    s_payload(i-1) := bus_in(8-i);
+    --    s_out_bytes_wen_n(i-1) := '1';     
+    --  end if;
+    --  i := i+1;
+    --end loop;
+    
+    s_payload := bus_in;
+    for i in bus_in'range loop
+      if(i < last_bytes) then
+        s_out_bytes_wen_n(i) := '1';
+      else
+        s_out_bytes_wen_n(i) := '0';
       end if;
-      i := i+1;
     end loop;
     
     if(last_bytes = 0) then
@@ -121,6 +130,32 @@ architecture behav of message_receiver is
     end if;        
   end procedure output_last_payload;
 
+--*******************************************************************************************
+-- Procedure: reverse_byte_array
+--*******************************************************************************************
+--  procedure reverse_byte_array(input_array  : in byte_array; 
+--                               in_index     : in integer range 0 to 7;
+--                               output_array : out byte_array
+--                               ) is
+--    --alias normalized_input  : byte_array(0 to input_array'high) is input_array;
+--    --alias normalized_output : byte_array(0 to output_array'high) is output_array;
+--    constant OUT_INDEX : integer := 7;
+--  begin    
+--     for i in input_array'range loop
+--       output_array(OUT_INDEX - i) := input_array(in_index - i);
+--     end loop;
+--  end procedure reverse_byte_array;
+
+--  function reverse_byte_array(input_array  : in byte_array; in_index : in integer range 0 to 7; 
+--                               output_array : in byte_array; out_index : in integer range 0 to 7)
+--        return byte_array is
+--  begin    
+--     for i in input_array'range loop
+--       output_array(out_index + i) := input_array(in_index - i);
+--     end loop;
+--  end function reverse_byte_array;
+
+--alias eop_a : std_logic is IN_END_OF_PACKET;
 --*******************************************************************************************
 -- PROCDURE: is_last_cycle
 --*******************************************************************************************
@@ -144,29 +179,36 @@ architecture behav of message_receiver is
                                  -- which leaves space for 6 bytes of data.
       when 1 =>        
         next_message_len          := to_integer(unsigned(bus_in(6)) & unsigned(bus_in(5)));
-        next_message_data(3 to 7) := bus_in(0 to 4);
+        next_message_data(7) := bus_in(4);
+        next_message_data(6) := bus_in(3);
+        next_message_data(5) := bus_in(2);
+        next_message_data(4) := bus_in(1);
+        next_message_data(3) := bus_in(0);
         next_message_bytes := 5;
       when 2 =>
         next_message_len          := to_integer(unsigned(bus_in(5)) & unsigned(bus_in(4))); 
-        next_message_data(4 to 7) := bus_in(0 to 3);
+        next_message_data(7) := bus_in(3);
+        next_message_data(6) := bus_in(2);
+        next_message_data(5) := bus_in(1);
+        next_message_data(4) := bus_in(0);
         next_message_bytes := 4;
       when 3 =>
         next_message_len          := to_integer(unsigned(bus_in(4)) & unsigned(bus_in(3)));
-        next_message_data(5 to 7) := bus_in(0 to 2);
+        next_message_data(7) := bus_in(2);
+        next_message_data(6) := bus_in(1);
+        next_message_data(5) := bus_in(0);
         next_message_bytes := 3;
       when 4 =>
         next_message_len          := to_integer(unsigned(bus_in(3)) & unsigned(bus_in(2))); 
-        --next_message_data(6 to 7) := bus_in(0 to 1);
-        --next_message_data(7) := bus_in(1);
-        --next_message_data(6) := bus_in(0);
-        next_message_data(7 from 6) := bus_in(0 to 1);
+        next_message_data(7) := bus_in(1);
+        next_message_data(6) := bus_in(0);
         next_message_bytes := 2;
       when 5 =>
         next_message_len     := to_integer(unsigned(bus_in(2)) & unsigned(bus_in(1))); 
         next_message_data(7) := bus_in(0);
-        next_message_bytes := 1;
+        next_message_bytes   := 1;
       when 6 =>
-        next_message_len := to_integer(unsigned(bus_in(1)) & unsigned(bus_in(0)));
+        next_message_len   := to_integer(unsigned(bus_in(1)) & unsigned(bus_in(0)));
         next_message_bytes := 8; -- This is 8 because [in this case only] the length bytes 
                                  -- will not take up space on the next bus cycle
       when 7 =>
@@ -516,6 +558,7 @@ end function is_stall_required;
     s_in_sop_b   <= IN_START_OF_PACKET = '1';
     s_in_eop_b   <= IN_END_OF_PACKET   = '1';
     s_in_error_b <= IN_ERROR           = '1';
+    s_in_ready_b <= IN_READY           = '1';
    ----------------------------------------------------------------------------------------------------------
     -- GET_DATA state signals to hide code
     ----------------------------------------------------------------------------------------------------------
@@ -724,7 +767,7 @@ end function is_stall_required;
                 end if;
 
                 if(not s_in_ready_b) then
-                  s_nxt_state     <= STALL;    -- Override next state, if not ready
+                  s_nxt_state     <= INTERNAL_STALL;    -- Override next state, if not ready
                                                -- The s_next_state_ptr will know where to
                                                -- go after the stall                 
                 end if;                  
@@ -752,34 +795,40 @@ end function is_stall_required;
 
                 s_next_msg_type <= get_next_msg_type(s_last_byte_cnt_i_q);
 
-                s_nxt_state     <= WAIT_SOP when s_in_eop_b else START_NEW_MESSAGE;
-                s_nxt_state_ptr <= START_NEW_MESSAGE;
+Write the function "get_next_state" (Need to account for STALL_AND_OUTPUT_DATA state) => check the commented out function already written
+Write the STALL_AND_OUTPUT_DATA (now called EXTERNAL_STALL state)
+                s_nxt_state     <= get_next_state(s_in_eop_b, get_next_msg_type(s_last_byte_cnt_i_q));
+                --s_nxt_state     <= WAIT_SOP when s_in_eop_b else START_NEW_MESSAGE;
+                s_nxt_state_ptr <= get_next_state(s_in_eop_b, get_next_msg_type(s_last_byte_cnt_i_q));
                 s_stall_comb    <= is_stall_required(s_last_byte_cnt_i_q);
-                                                 -- Stall allows the next message data to be output
-                                                 -- without losing the next cycle's data
+                                                 -- combinatorial output allows the next message data to be output
+                                                 -- in the STALL_AND_OUTPUT_DATA state without losing the next 
+                                                 -- cycle's data
 
                 -- Override the next state if any of the following conditions are met                
                 if(s_in_error_b) then
                   s_nxt_state <= WAIT_SOP; -- Assume entire message is bad
                 elsif(not s_in_ready_b) then                  
-                  s_nxt_state     <= STALL; -- Override next state, if not ready
+                  s_nxt_state     <= INTERNAL_STALL; -- Override next state, if not ready
                                             -- The s_next_state_ptr will know where to
                                             -- go after the stall 
                   s_stall_comb      <= false; -- Cancel the combinatorial stall (if set)                      
                   s_stall_comb_save <= is_stall_required(s_last_byte_cnt_i_q); -- Save the combinatorial stall           
                 end if;
                 
-              when STALL =>    
+              when EXTERNAL_STALL =>    
                 s_stall_comb_save <= false; -- Clear the register in case we entered from the STALL state            
                 if(s_in_error_b) then
                   s_nxt_state <= WAIT_SOP; -- Assume entire message is bad
                 elsif(not s_in_ready_b) then
-                  s_nxt_state       <= STALL; 
+                  s_nxt_state       <= INTERNAL_STALL; 
                 else   
                   s_nxt_state  <= s_nxt_state_ptr_q; -- Go back to designated next state, before stall 
                   s_stall_comb <= s_stall_comb_save_q;                  
                 end if;
-              
+
+              when INTERNAL_STALL =>
+                
               when START_NEW_MESSAGE =>                
                 s_msg_len_i <= s_new_msg_length_i; 
 
