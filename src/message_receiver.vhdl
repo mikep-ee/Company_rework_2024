@@ -74,10 +74,11 @@ architecture behav of message_receiver is
   begin
     msg_len_in := msg_len;
     mask := (others => '0');
-    for i in 0 to (MAX_MSG_LEN_C-1) loop -- 32 is the max message len
-      if (msg_len_in /= 0) then
+    for i in 0 to (mask'length-1) loop
+      if (i < msg_len_in) then
         mask(i) := '1';
-        msg_len_in := msg_len_in - 1; -- What would this synthesize to?
+      else
+        mask(i) := '0';
       end if;
     end loop;
     return mask;
@@ -267,11 +268,11 @@ end function is_stall_required;
     case last_bytes is
       when 0 =>
         return no_length_no_data;
-      when 1 | 2 | 3 | 4 =>      
+      when 1 | 2 | 3 | 4 | 5 =>      
         return length_with_data;                   
-      when 5 =>      
+      when 6 =>      
         return length_no_data;                    
-      when 6 =>
+      when 7 =>
         return msb_length_only;                    
       when others =>
         return dont_care;                       
@@ -291,7 +292,8 @@ end function is_stall_required;
     msg_len_minus_bytes_captured := std_logic_vector(to_unsigned(msg_len - bytes_captured, 
                                                          msg_len_minus_bytes_captured'length));    
 
-    return not (to_integer(unsigned(msg_len_minus_bytes_captured(7 downto 3))) = 0);
+    --return not (to_integer(unsigned(msg_len_minus_bytes_captured(7 downto 3))) = 0);
+    return (to_integer(unsigned(msg_len_minus_bytes_captured)) <= 8);
   end function is_last_cycle;
 
 ----*******************************************************************************************
@@ -598,7 +600,7 @@ end function is_stall_required;
           s_new_msg_no_full_cycles_b <= is_last_cycle(s_next_message_len_i_q, s_new_msg_bytes_i_q);
         when length_no_data =>
           s_new_msg_length_i         <= s_next_message_len_i_q;
-          s_new_msg_data             <= map_msg_data(bus_in_array, 0);
+          s_new_msg_data             <= map_msg_data(bus_in_array, 8);
           s_new_msg_cycle_calc_i     <= remaining_cycles(s_next_message_len_i_q, s_new_msg_bytes_i_q);
           s_new_msg_last_byte_cnt_i  <= calc_last_byte_cnt(s_next_message_len_i_q, s_new_msg_bytes_i_q);
           s_new_msg_out_bytes_wen_n  <= calc_byte_wen(s_new_msg_bytes_i_q);
@@ -845,7 +847,7 @@ end function is_stall_required;
                 s_last_byte_cnt_i <= calc_last_byte_cnt(s_next_message_len_i_q, s_new_msg_bytes_i_q);
                 
                 s_out_bytes_wen_n <= calc_byte_wen(s_new_msg_bytes_i_q);
-                s_out_byte_mask   <= calc_mask(s_msg_len_from_data_bus_i);
+                s_out_byte_mask   <= calc_mask(s_next_message_len_i_q);
                 
                 if(s_in_error_b) then
                   s_nxt_state <= WAIT_SOP; -- Assume entire message is bad
@@ -868,8 +870,10 @@ end function is_stall_required;
 
                 i := 0;
                 while i < 8 loop 
-                  if(i <= s_new_msg_bytes_i_q) then
+                  if(i <= s_new_msg_bytes_i_q - 1) then
                     s_payload(i) <= s_new_msg_data(i);
+                  else
+                    s_payload(i) <= (others => '0');
                   end if;
                   i := i+1;
                 end loop;

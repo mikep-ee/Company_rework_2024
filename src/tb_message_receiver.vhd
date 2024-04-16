@@ -136,18 +136,18 @@ end component message_receiver;
       wait until rising_edge(s_clk);
       
       -- Excercise design with test vectors
-      v_index := C_VECTOR_CNT - 1;
-      while v_index >= 0 loop
+      v_index := C_VECTOR_CNT;
+      while v_index > 0 loop
         wait until rising_edge(s_clk) ;
         if(s_out_ready = '1') then
-          s_in_valid  <= C_INPUT_TEST_VECTOR_1(v_index)(C_VAL_BIT);
-          s_in_sop    <= C_INPUT_TEST_VECTOR_1(v_index)(C_SOP_BIT);
-          s_in_eop    <= C_INPUT_TEST_VECTOR_1(v_index)(C_EOP_BIT);
-          s_in_data   <= C_INPUT_TEST_VECTOR_1(v_index)(C_DBUS_HI_BIT 
+          s_in_valid  <= C_INPUT_TEST_VECTOR_1(v_index-1)(C_VAL_BIT);
+          s_in_sop    <= C_INPUT_TEST_VECTOR_1(v_index-1)(C_SOP_BIT);
+          s_in_eop    <= C_INPUT_TEST_VECTOR_1(v_index-1)(C_EOP_BIT);
+          s_in_data   <= C_INPUT_TEST_VECTOR_1(v_index-1)(C_DBUS_HI_BIT 
                                                          downto C_DBUS_LO_BIT);
-          s_in_empty  <= C_INPUT_TEST_VECTOR_1(v_index)(C_EMPTY_HI_BIT 
+          s_in_empty  <= C_INPUT_TEST_VECTOR_1(v_index-1)(C_EMPTY_HI_BIT 
                                                          downto C_EMPTY_LO_BIT);
-          s_in_error  <= C_INPUT_TEST_VECTOR_1(v_index)(C_ERROR_BIT);
+          s_in_error  <= C_INPUT_TEST_VECTOR_1(v_index-1)(C_ERROR_BIT);
           s_in_ready  <= '1' ; -- Driven by module being fed OUT_BYTES; Will test later.
  
           v_index := v_index - 1;
@@ -191,13 +191,13 @@ end component message_receiver;
         test_pass_b(7) := s_out_bytes       = OUT_VECTOR_DATA_1(i); 
  
         
-        --for j in 0 to 7 loop
-        --  if not test_pass_b(j) then          
-        --   assert  false                       
-        --     report "MESSAGE_RECEIVER: SIMULATION FAILED!!" 
-        --     severity failure;
-        --  end if    ;
-        --end loop ;
+        for j in 0 to 7 loop
+          if not test_pass_b(j) then          
+           assert  false                       
+             report "MESSAGE_RECEIVER: SIMULATION FAILED!!" 
+             severity failure;
+          end if    ;
+        end loop ;
  
         --wait until rising_edge(s_clk);
         --wait until s_msg_done = '1' ;
@@ -218,6 +218,7 @@ end component message_receiver;
         --                                     );
       end loop    ;
       
+      wait for 100 ns;
       assert false                             
          report "MESSAGE_RECEIVER: TEST PASSED!!!" 
          severity failure;                     
