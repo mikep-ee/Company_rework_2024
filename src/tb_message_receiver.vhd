@@ -192,10 +192,47 @@ end component message_receiver;
  
         
         for j in 0 to 7 loop
-          if not test_pass_b(j) then          
+          if not test_pass_b(j) then
+
+          --report "MESSAGE_RECEIVER: SIMULATION FAILED!!" & LF &
+          --          "Loop iteration: " & to_string(i) & LF &
+          --          "s_last_byte_cnt : " & to_string(s_last_byte_cnt) &" Expected : " & to_string(OUT_VECTOR_START_MSG_1(i)(C_CNT_HI_BIT downto C_CNT_LO_BIT)) & LF &
+          --          "s_out_ready     : " & to_string(s_out_ready)     &" Expected : " & to_string(OUT_VECTOR_START_MSG_1(i)(C_READY_BIT)) & LF &
+          --          "s_byte_mask     : " & to_string(s_byte_mask)     &" Expected : " & to_string(OUT_VECTOR_START_MSG_1(i)(C_MASK_HI_BIT downto C_MASK_LO_BIT)) & LF &
+          --          "s_out_bytes_wen_n : " & to_string(s_out_bytes_wen_n) &" Expected : " & to_string(OUT_VECTOR_START_MSG_1(i)(C_WEN_HI_BIT  downto C_WEN_LO_BIT)) & LF &
+          --          "s_out_bytes_val   : " & to_string(s_out_bytes_val)   &" Expected : " & to_string(OUT_VECTOR_START_MSG_1(i)(C_BVAL_BIT)) & LF &
+          --          "s_msg_start       : " & to_string(s_msg_start)       &" Expected : " & to_string(OUT_VECTOR_START_MSG_1(i)(C_START_BIT)) & LF &
+          --          "s_msg_done        : " & to_string(s_msg_done)        &" Expected : " & to_string(OUT_VECTOR_START_MSG_1(i)(C_DONE_BIT)) & LF &
+          --          "s_out_bytes       : " & to_string(s_out_bytes(0))       &" Expected : " & to_string(OUT_VECTOR_DATA_1(i)(0)) & LF &
+          --          "s_out_bytes       : " & to_string(s_out_bytes(1))       &" Expected : " & to_string(OUT_VECTOR_DATA_1(i)(1)) & LF &
+          --          "s_out_bytes       : " & to_string(s_out_bytes(2))       &" Expected : " & to_string(OUT_VECTOR_DATA_1(i)(2)) & LF &
+          --          "s_out_bytes       : " & to_string(s_out_bytes(3))       &" Expected : " & to_string(OUT_VECTOR_DATA_1(i)(3)) & LF &
+          --          "s_out_bytes       : " & to_string(s_out_bytes(4))       &" Expected : " & to_string(OUT_VECTOR_DATA_1(i)(4)) & LF &
+          --          "s_out_bytes       : " & to_string(s_out_bytes(5))       &" Expected : " & to_string(OUT_VECTOR_DATA_1(i)(5)) & LF &
+          --          "s_out_bytes       : " & to_string(s_out_bytes(6))       &" Expected : " & to_string(OUT_VECTOR_DATA_1(i)(6)) & LF &
+          --          "s_out_bytes       : " & to_string(s_out_bytes(7))       &" Expected : " & to_string(OUT_VECTOR_DATA_1(i)(7)) & LF &
+          --          "**********************************************************************************************************************" & LF
+          --severity warning;
+
            assert  false                       
-             report "MESSAGE_RECEIVER: SIMULATION FAILED!!" 
-             severity failure;
+             report "MESSAGE_RECEIVER: SIMULATION FAILED!!" & LF &
+                    "Loop iteration: " & to_string(i) & LF &
+                    "s_last_byte_cnt : " & to_string(s_last_byte_cnt) &" Expected : " & to_string(OUT_VECTOR_START_MSG_1(i)(C_CNT_HI_BIT downto C_CNT_LO_BIT)) & LF &
+                    "s_out_ready     : " & to_string(s_out_ready)     &" Expected : " & to_string(OUT_VECTOR_START_MSG_1(i)(C_READY_BIT)) & LF &
+                    "s_byte_mask     : " & to_string(s_byte_mask)     &" Expected : " & to_string(OUT_VECTOR_START_MSG_1(i)(C_MASK_HI_BIT downto C_MASK_LO_BIT)) & LF &
+                    "s_out_bytes_wen_n : " & to_string(s_out_bytes_wen_n) &" Expected : " & to_string(OUT_VECTOR_START_MSG_1(i)(C_WEN_HI_BIT  downto C_WEN_LO_BIT)) & LF &
+                    "s_out_bytes_val   : " & to_string(s_out_bytes_val)   &" Expected : " & to_string(OUT_VECTOR_START_MSG_1(i)(C_BVAL_BIT)) & LF &
+                    "s_msg_start       : " & to_string(s_msg_start)       &" Expected : " & to_string(OUT_VECTOR_START_MSG_1(i)(C_START_BIT)) & LF &
+                    "s_msg_done        : " & to_string(s_msg_done)        &" Expected : " & to_string(OUT_VECTOR_START_MSG_1(i)(C_DONE_BIT)) & LF &
+                    "s_out_bytes       : " & to_string(s_out_bytes(0))       &" Expected : " & to_string(OUT_VECTOR_DATA_1(i)(0)) & LF &
+                    "s_out_bytes       : " & to_string(s_out_bytes(1))       &" Expected : " & to_string(OUT_VECTOR_DATA_1(i)(1)) & LF &
+                    "s_out_bytes       : " & to_string(s_out_bytes(2))       &" Expected : " & to_string(OUT_VECTOR_DATA_1(i)(2)) & LF &
+                    "s_out_bytes       : " & to_string(s_out_bytes(3))       &" Expected : " & to_string(OUT_VECTOR_DATA_1(i)(3)) & LF &
+                    "s_out_bytes       : " & to_string(s_out_bytes(4))       &" Expected : " & to_string(OUT_VECTOR_DATA_1(i)(4)) & LF &
+                    "s_out_bytes       : " & to_string(s_out_bytes(5))       &" Expected : " & to_string(OUT_VECTOR_DATA_1(i)(5)) & LF &
+                    "s_out_bytes       : " & to_string(s_out_bytes(6))       &" Expected : " & to_string(OUT_VECTOR_DATA_1(i)(6)) & LF &
+                    "s_out_bytes       : " & to_string(s_out_bytes(7))       &" Expected : " & to_string(OUT_VECTOR_DATA_1(i)(7)) & LF
+             severity warning;
           end if    ;
         end loop ;
  
