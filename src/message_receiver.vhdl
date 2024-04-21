@@ -45,7 +45,9 @@ entity message_receiver is
           --MAX_BYTE_CNT       : OUT  std_logic_vector(2 downto 0);
           MSG_START          : OUT  std_logic;
           MSG_DONE           : OUT  std_logic;
-        LAST_BYTE_CNT      : OUT  std_logic_vector(2 downto 0)
+          LAST_BYTE_CNT      : OUT  std_logic_vector(2 downto 0);
+
+          DEBUG_STATE        : OUT  sm_state
     );
   end entity message_receiver;
 
@@ -53,7 +55,9 @@ entity message_receiver is
 architecture behav of message_receiver is
   -- Type definitions
   --type bus_in is array(0 to 7) of std_logic_vector(7 downto 0);
-  type sm_state is (WAIT_SOP, GET_DATA, LAST_CYCLE, EXTERNAL_STALL, INTERNAL_STALL, START_NEW_MESSAGE);
+  
+  -- temporarily move to package
+  -- type sm_state is (WAIT_SOP, GET_DATA, LAST_CYCLE, EXTERNAL_STALL, INTERNAL_STALL, START_NEW_MESSAGE);
 
   type msg_type_t is (no_length_no_data, length_no_data, length_with_data, msb_length_only, dont_care);
 
@@ -644,15 +648,16 @@ end function is_stall_required;
     --bus_in_array(7) <= IN_DATA(63 downto 56);
 
     --OUT_VALID          <= s_out_bytes_val_q;
-    OUT_BYTE_MASK      <= (others => '0'); -- calculate this from message size
+    OUT_BYTE_MASK      <= s_out_byte_mask_q; -- calculate this from message size
     OUT_BYTES          <= s_payload_q;
     OUT_BYTES_WEN_N    <= s_out_bytes_wen_n_q;
     OUT_BYTES_VAL      <= s_out_bytes_val_q;
     OUT_READY          <= '0' when s_stall_comb else '1'; -- This is a combinatorial output because, if stalled,
                                                           -- we can't accept data on the next cycle
     MSG_START          <= s_msg_start_q;
-    MSG_DONE           <= '0'; --declare a signal for this
+    MSG_DONE           <= s_msg_done_q; --declare a signal for this
     LAST_BYTE_CNT      <= std_logic_vector(to_unsigned(s_last_byte_cnt_i_q, LAST_BYTE_CNT'length)); --declare a signal for this
+    DEBUG_STATE        <= s_state_q;
 
     rcv_sm_comb : process(all)
          variable i                    : integer := 0;
@@ -661,8 +666,8 @@ end function is_stall_required;
          variable v_payload            : byte_array(0 to 7);
          variable v_next_message_len_i : integer range 0 to MAX_MSG_LEN_C-1;
          variable v_next_message_data  : byte_array(0 to 7);
-         variable v_nxt_state          : sm_state;
-         variable v_stall_comb         : boolean;
+         --variable v_nxt_state          : sm_state;
+         --variable v_stall_comb         : boolean;
          variable v_new_msg_index_i    : integer range 0 to MAX_MSG_LEN_C-1;
 
        begin
@@ -781,7 +786,7 @@ end function is_stall_required;
                
                 s_msg_done        <= '1'; -- Message is done
                 s_stall_comb_save <= false;
-                v_stall_comb      := false;
+                --v_stall_comb      := false;
 
                 output_last_payload(s_last_byte_cnt_i_q , bus_in_array,                  -- Procedure inputs
                                     v_out_bytes_val     , v_out_bytes_wen_n , v_payload  -- Procedure outputs

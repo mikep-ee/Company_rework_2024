@@ -48,7 +48,9 @@ architecture rtl of tb_message_receiver is
         MSG_START          : OUT  std_logic;
         MSG_DONE           : OUT  std_logic;
 
-        LAST_BYTE_CNT      : OUT  std_logic_vector(2 downto 0)
+        LAST_BYTE_CNT      : OUT  std_logic_vector(2 downto 0);
+
+        DEBUG_STATE        : out sm_state
     );
 end component message_receiver;  
 
@@ -82,6 +84,9 @@ end component message_receiver;
    signal s_msg_done       : std_logic := '0' ; -- Message done   
    signal s_last_byte_cnt  : std_logic_vector(2 downto 0) := (others => '0'); -- Last byte count 
  
+   signal s_debug_state       : sm_state ; -- Debug state
+   signal s_debug_state_print : string(1 to 18); -- Debug state print
+
    begin
    
     inst_msg_rcvr : message_receiver
@@ -110,9 +115,31 @@ end component message_receiver;
       OUT_BYTES_VAL   => s_out_bytes_val   , -- Output bytes valid
       MSG_START       => s_msg_start       , -- Message start
       MSG_DONE        => s_msg_done        , -- Message done
-      LAST_BYTE_CNT   => s_last_byte_cnt   -- Last byte count
+      LAST_BYTE_CNT   => s_last_byte_cnt   , -- Last byte count
+
+      DEBUG_STATE     => s_debug_state
     )                                      ;
    
+    dbg_process : process(s_debug_state)
+    begin 
+      case s_debug_state is 
+        when WAIT_SOP =>
+          s_debug_state_print <= "WAIT_SOP          "; --
+        when GET_DATA =>
+          s_debug_state_print <= "GET_DATA          ";
+        when LAST_CYCLE =>
+          s_debug_state_print <= "LAST_CYCLE        ";
+        when EXTERNAL_STALL =>
+          s_debug_state_print <= "EXTERNAL_STALL    ";  
+        when INTERNAL_STALL =>
+          s_debug_state_print <= "INTERNAL_STALL    ";  
+        when START_NEW_MESSAGE =>
+          s_debug_state_print <= "START_NEW_MESSAGE ";
+        when others =>
+          s_debug_state_print <= "UNKNOWN_STATE     ";
+      end case;
+    end process;
+
     tb_sim_clk : process                                                  
      begin                                                
        wait for 5 ns      ; -- 200Mhz clk
@@ -133,7 +160,7 @@ end component message_receiver;
       
       wait until s_reset_n = '1' ;
       
-      wait until rising_edge(s_clk);
+      --wait until rising_edge(s_clk);
       
       -- Excercise design with test vectors
       v_index := C_VECTOR_CNT;
@@ -175,6 +202,7 @@ end component message_receiver;
       
       wait until s_reset_n = '1' ;
       wait until rising_edge(s_clk);
+      wait until rising_edge(s_clk);
 
       -- Check design output against vectors
       for i in C_VECTOR_QTY-1 downto 0 loop
@@ -191,8 +219,8 @@ end component message_receiver;
         test_pass_b(7) := s_out_bytes       = OUT_VECTOR_DATA_1(i); 
  
         
-        for j in 0 to 7 loop
-          if not test_pass_b(j) then
+        --for j in 0 to 7 loop
+        --  if not test_pass_b(j) then
 
           --report "MESSAGE_RECEIVER: SIMULATION FAILED!!" & LF &
           --          "Loop iteration: " & to_string(i) & LF &
@@ -216,6 +244,7 @@ end component message_receiver;
 
            assert  false                       
              report "MESSAGE_RECEIVER: SIMULATION FAILED!!" & LF &
+                    "Present state: " & s_debug_state_print & LF &
                     "Loop iteration: " & to_string(i) & LF &
                     "s_last_byte_cnt : " & to_string(s_last_byte_cnt) &" Expected : " & to_string(OUT_VECTOR_START_MSG_1(i)(C_CNT_HI_BIT downto C_CNT_LO_BIT)) & LF &
                     "s_out_ready     : " & to_string(s_out_ready)     &" Expected : " & to_string(OUT_VECTOR_START_MSG_1(i)(C_READY_BIT)) & LF &
@@ -233,8 +262,8 @@ end component message_receiver;
                     "s_out_bytes       : " & to_string(s_out_bytes(6))       &" Expected : " & to_string(OUT_VECTOR_DATA_1(i)(6)) & LF &
                     "s_out_bytes       : " & to_string(s_out_bytes(7))       &" Expected : " & to_string(OUT_VECTOR_DATA_1(i)(7)) & LF
              severity warning;
-          end if    ;
-        end loop ;
+        --  end if    ;
+        --end loop ;
  
         --wait until rising_edge(s_clk);
         --wait until s_msg_done = '1' ;

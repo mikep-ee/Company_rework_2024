@@ -5,6 +5,9 @@ use ieee.numeric_std.all;
 
 -- Package declaration
 package pkg_company_rework_types is
+    -- Temporarily keep the sm_state here for debugging. Move back to message_receiver.vhd when done.
+    type sm_state is (WAIT_SOP, GET_DATA, LAST_CYCLE, EXTERNAL_STALL, INTERNAL_STALL, START_NEW_MESSAGE);
+    
     -- Type definitions
     type byte_array is array (natural range <>) of std_logic_vector(7 downto 0);
     
