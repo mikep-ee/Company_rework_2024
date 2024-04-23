@@ -136,7 +136,30 @@ constant OUT_VECTOR_START_MSG_1 : sink_vect_out_validate :=
       (x"5a",       x"5a",       x"00",       x"00",       x"00",       x"00",       x"00",       x"00")  -- Cycle 18
   );  
 
-
+-- Just in case we need to reverse the output data  
+--constant REVERSED_OUT_VECTOR_DATA_1 : sink_vect_data_validate := 
+--  (
+--      -- Manually reversed byte order for each entry
+--      (x"00", x"00", x"00", x"00", x"62", x"62", x"62", x"62"), -- Cycle 1
+--      (x"00", x"00", x"00", x"00", x"62", x"62", x"62", x"62"), -- Cycle 2
+--      (x"00", x"00", x"00", x"00", x"00", x"00", x"68", x"68"), -- Cycle 3
+--      (x"68", x"68", x"68", x"68", x"68", x"68", x"68", x"68"), -- Cycle 4
+--      (x"00", x"00", x"00", x"00", x"00", x"00", x"68", x"68"), -- Cycle 5
+--      (x"00", x"00", x"00", x"00", x"70", x"70", x"70", x"70"), -- Cycle 6
+--      (x"00", x"00", x"70", x"70", x"70", x"70", x"70", x"70"), -- Cycle 7
+--      (x"7a", x"7a", x"7a", x"7a", x"7a", x"7a", x"7a", x"7a"), -- Cycle 8
+--      (x"00", x"7a", x"7a", x"7a", x"7a", x"7a", x"7a", x"7a"), -- Cycle 9
+--      (x"00", x"4d", x"4d", x"4d", x"4d", x"4d", x"4d", x"4d"), -- Cycle 10
+--      (x"00", x"4d", x"4d", x"4d", x"4d", x"4d", x"4d", x"4d"), -- Cycle 11
+--      (x"00", x"38", x"38", x"38", x"38", x"38", x"38", x"38"), -- Cycle 12
+--      (x"38", x"38", x"38", x"38", x"38", x"38", x"38", x"38"), -- Cycle 13
+--      (x"00", x"00", x"00", x"00", x"38", x"38", x"38", x"38"), -- Cycle 14
+--      (x"00", x"00", x"00", x"00", x"31", x"31", x"31", x"31"), -- Cycle 15
+--      (x"00", x"31", x"31", x"31", x"31", x"31", x"31", x"31"), -- Cycle 16
+--      (x"00", x"5a", x"5a", x"5a", x"5a", x"5a", x"5a", x"5a"), -- Cycle 17
+--      (x"00", x"00", x"00", x"00", x"00", x"00", x"5a", x"5a")  -- Cycle 18
+--  );
+--
 
 
  end package pkg_sink_test_vectors;

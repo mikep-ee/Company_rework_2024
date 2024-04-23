@@ -202,7 +202,7 @@ end component message_receiver;
       
       wait until s_reset_n = '1' ;
       wait until rising_edge(s_clk);
-      wait until rising_edge(s_clk);
+      --wait until rising_edge(s_clk);
 
       -- Check design output against vectors
       for i in C_VECTOR_QTY-1 downto 0 loop

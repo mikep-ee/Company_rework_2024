@@ -256,7 +256,9 @@ function is_stall_required(last_bytes : in integer range 0 to MAX_LAST_BYTE_CNT_
                          ) return boolean is                        
 begin
 
-  if(last_bytes = 1 or last_bytes = 2 or last_bytes = 3 or last_bytes = 4) then
+  if(last_bytes <= 6) then 
+    -- There is room for data on the next cycle.
+    -- Therefore, a stall is required.
     return true; 
   else
     return false;
@@ -695,17 +697,13 @@ end function is_stall_required;
                 s_msg_cnt_i <= s_msg_cnt_from_data_bus_i;
                 s_msg_len_i <= s_msg_len_from_data_bus_i; 
 
-                i := 0;
-                while i < 4 loop                                
-                  s_payload(i) <= bus_in_array(3-i);
-                  i := i+1;
-                end loop;
-
+                s_payload         <= map_msg_data(bus_in_array, 4); -- bytes captured = 4
                 s_num_cycles_i    <= s_calc_cycles_for_msg_i; 
                 s_last_byte_cnt_i <= s_calc_bytes_in_last_cycle_i; 
-                s_out_bytes_wen_n <= x"0F"; 
+                s_out_bytes_wen_n <= calc_byte_wen(4); -- bytes captured = 4
                 s_out_byte_mask   <= calc_mask(s_msg_len_from_data_bus_i);                
-                
+                s_stall_comb      <= false;
+
                 if(s_in_sop_b and (not s_in_error_b)) then                  
                   s_out_bytes_val   <= '1'; -- Output (payload) data is now valid
                   s_msg_start       <= '1'; -- Start of message  
