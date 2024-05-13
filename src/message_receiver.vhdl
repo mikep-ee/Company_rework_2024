@@ -694,17 +694,27 @@ end function is_stall_required;
 
            case s_state_q is
               when WAIT_SOP =>
-                s_msg_cnt_i <= s_msg_cnt_from_data_bus_i;
-                s_msg_len_i <= s_msg_len_from_data_bus_i; 
+                --s_msg_cnt_i <= s_msg_cnt_from_data_bus_i;
+                --s_msg_len_i <= s_msg_len_from_data_bus_i; 
+--
+                --s_payload         <= map_msg_data(bus_in_array, 4); -- bytes captured = 4
+                --s_num_cycles_i    <= s_calc_cycles_for_msg_i; 
+                --s_last_byte_cnt_i <= s_calc_bytes_in_last_cycle_i; 
+                --s_out_bytes_wen_n <= calc_byte_wen(4); -- bytes captured = 4
+                --s_out_byte_mask   <= calc_mask(s_msg_len_from_data_bus_i);                
+                --s_stall_comb      <= false;
 
-                s_payload         <= map_msg_data(bus_in_array, 4); -- bytes captured = 4
-                s_num_cycles_i    <= s_calc_cycles_for_msg_i; 
-                s_last_byte_cnt_i <= s_calc_bytes_in_last_cycle_i; 
-                s_out_bytes_wen_n <= calc_byte_wen(4); -- bytes captured = 4
-                s_out_byte_mask   <= calc_mask(s_msg_len_from_data_bus_i);                
-                s_stall_comb      <= false;
+                if(s_in_sop_b and (not s_in_error_b)) then  
+                  s_msg_cnt_i <= s_msg_cnt_from_data_bus_i;
+                  s_msg_len_i <= s_msg_len_from_data_bus_i; 
+  
+                  s_payload         <= map_msg_data(bus_in_array, 4); -- bytes captured = 4
+                  s_num_cycles_i    <= s_calc_cycles_for_msg_i; 
+                  s_last_byte_cnt_i <= s_calc_bytes_in_last_cycle_i; 
+                  s_out_bytes_wen_n <= calc_byte_wen(4); -- bytes captured = 4
+                  s_out_byte_mask   <= calc_mask(s_msg_len_from_data_bus_i);                
+                  s_stall_comb      <= false;
 
-                if(s_in_sop_b and (not s_in_error_b)) then                  
                   s_out_bytes_val   <= '1'; -- Output (payload) data is now valid
                   s_msg_start       <= '1'; -- Start of message  
                   s_cyc_cnt_i       <=  1 ; --Initialize cycle counter

@@ -93,48 +93,71 @@ package pkg_sink_test_vectors is
 constant OUT_VECTOR_START_MSG_1 : sink_vect_out_validate := 
   (
    --|LAST_BYTE_CNT | OUT_READY | BYTE_MASK              | BYTE_WEN | BYTES_VAL | MSG_START | MSG_DONE
-      "100"         & '1'       & x"0000_00FF" & x"0F"    & '1'       &  '1'      & '0' , -- Cycle 1
-      "100"         & '0'       & x"0000_0FFF" & x"0F"    & '1'       &  '0'      & '1' , -- Cycle 2
-      "100"         & '1'       & x"0000_0FFF" & x"03"    & '1'       &  '1'      & '0' , -- Cycle 3
-      "100"         & '1'       & x"0000_0FFF" & x"FF"    & '1'       &  '0'      & '0' , -- Cycle 4
-      "100"         & '0'       & x"0000_0FFF" & x"03"    & '1'       &  '0'      & '1' , -- Cycle 5
-      "010"         & '1'       & x"0000_03FF" & x"0F"    & '1'       &  '1'      & '0' , -- Cycle 6
-      "010"         & '1'       & x"0000_03FF" & x"3F"    & '1'       &  '0'      & '1' , -- Cycle 7
-      "111"         & '1'       & x"0000_7FFF" & x"FF"    & '1'       &  '1'      & '0' , -- Cycle 8
-      "111"         & '1'       & x"0000_7FFF" & x"7F"    & '1'       &  '0'      & '1' , -- Cycle 9
-      "111"         & '1'       & x"0000_3FFF" & x"7F"    & '1'       &  '1'      & '0' , -- Cycle 10
-      "111"         & '1'       & x"0000_3FFF" & x"7F"    & '1'       &  '0'      & '1' , -- Cycle 11
-      "010"         & '1'       & x"0001_FFFF" & x"7F"    & '1'       &  '1'      & '0' , -- Cycle 12
-      "010"         & '1'       & x"0001_FFFF" & x"FF"    & '1'       &  '0'      & '0' , -- Cycle 13
-      "010"         & '0'       & x"0001_FFFF" & x"03"    & '1'       &  '0'      & '1' , -- Cycle 14
-      "111"         & '1'       & x"0000_07FF" & x"0F"    & '1'       &  '1'      & '0' , -- Cycle 15
-      "111"         & '1'       & x"0000_07FF" & x"7F"    & '1'       &  '0'      & '1' , -- Cycle 16
-      "010"         & '1'       & x"0000_01FF" & x"7F"    & '1'       &  '1'      & '0' , -- Cycle 17
-      "010"         & '1'       & x"0000_01FF" & x"03"    & '1'       &  '0'      & '1'   -- Cycle 18
+      "100"         & '0'       & x"0000_00FF" &           x"0F"    & '1'       &  '1'      & '0' , -- Cycle 1
+      "100"         & '1'       & x"0000_0FFF" &           x"0F"    & '1'       &  '0'      & '1' , -- Cycle 2
+      "100"         & '1'       & x"0000_0FFF" &           x"03"    & '1'       &  '1'      & '0' , -- Cycle 3
+      "100"         & '0'       & x"0000_0FFF" &           x"FF"    & '1'       &  '0'      & '0' , -- Cycle 4
+      "100"         & '1'       & x"0000_0FFF" &           x"03"    & '1'       &  '0'      & '1' , -- Cycle 5
+      "010"         & '1'       & x"0000_03FF" &           x"0F"    & '1'       &  '1'      & '0' , -- Cycle 6
+      "010"         & '1'       & x"0000_03FF" &           x"3F"    & '1'       &  '0'      & '1' , -- Cycle 7
+      "111"         & '1'       & x"0000_7FFF" &           x"FF"    & '1'       &  '1'      & '0' , -- Cycle 8
+      "111"         & '1'       & x"0000_7FFF" &           x"7F"    & '1'       &  '0'      & '1' , -- Cycle 9
+      "111"         & '1'       & x"0000_3FFF" &           x"7F"    & '1'       &  '1'      & '0' , -- Cycle 10
+      "111"         & '1'       & x"0000_3FFF" &           x"7F"    & '1'       &  '0'      & '1' , -- Cycle 11
+      "010"         & '1'       & x"0001_FFFF" &           x"7F"    & '1'       &  '1'      & '0' , -- Cycle 12
+      "010"         & '0'       & x"0001_FFFF" &           x"FF"    & '1'       &  '0'      & '0' , -- Cycle 13
+      "010"         & '1'       & x"0001_FFFF" &           x"03"    & '1'       &  '0'      & '1' , -- Cycle 14
+      "111"         & '1'       & x"0000_07FF" &           x"0F"    & '1'       &  '1'      & '0' , -- Cycle 15
+      "111"         & '1'       & x"0000_07FF" &           x"7F"    & '1'       &  '0'      & '1' , -- Cycle 16
+      "010"         & '1'       & x"0000_01FF" &           x"7F"    & '1'       &  '1'      & '0' , -- Cycle 17
+      "010"         & '1'       & x"0000_01FF" &           x"03"    & '1'       &  '0'      & '1'   -- Cycle 18
   );
 
-  constant OUT_VECTOR_DATA_1 : sink_vect_data_validate := 
-  (
-   --|Data Byte 0 | Data Byte 1 | Data Byte 2 | Data Byte 3 | Data Byte 4 | Data Byte 5 | Data Byte 6 | Data Byte 7
-      (x"62",       x"62",       x"62",       x"62",       x"00",       x"00",       x"00",       x"00"), -- Cycle 1
-      (x"62",       x"62",       x"62",       x"62",       x"00",       x"00",       x"00",       x"00"), -- Cycle 2
-      (x"68",       x"68",       x"00",       x"00",       x"00",       x"00",       x"00",       x"00"), -- Cycle 3
-      (x"68",       x"68",       x"68",       x"68",       x"68",       x"68",       x"68",       x"68"), -- Cycle 4
-      (x"68",       x"68",       x"00",       x"00",       x"00",       x"00",       x"00",       x"00"), -- Cycle 5
-      (x"70",       x"70",       x"70",       x"70",       x"00",       x"00",       x"00",       x"00"), -- Cycle 6
-      (x"70",       x"70",       x"70",       x"70",       x"70",       x"70",       x"00",       x"00"), -- Cycle 7
-      (x"7a",       x"7a",       x"7a",       x"7a",       x"7a",       x"7a",       x"7a",       x"7a"), -- Cycle 8
-      (x"7a",       x"7a",       x"7a",       x"7a",       x"7a",       x"7a",       x"7a",       x"00"), -- Cycle 9
-      (x"4d",       x"4d",       x"4d",       x"4d",       x"4d",       x"4d",       x"4d",       x"00"), -- Cycle 10
-      (x"4d",       x"4d",       x"4d",       x"4d",       x"4d",       x"4d",       x"4d",       x"00"), -- Cycle 11
-      (x"38",       x"38",       x"38",       x"38",       x"38",       x"38",       x"38",       x"00"), -- Cycle 12
-      (x"38",       x"38",       x"38",       x"38",       x"38",       x"38",       x"38",       x"38"), -- Cycle 13
-      (x"38",       x"38",       x"38",       x"38",       x"00",       x"00",       x"00",       x"00"), -- Cycle 14
-      (x"31",       x"31",       x"31",       x"31",       x"00",       x"00",       x"00",       x"00"), -- Cycle 15
-      (x"31",       x"31",       x"31",       x"31",       x"31",       x"31",       x"31",       x"00"), -- Cycle 16
-      (x"5a",       x"5a",       x"5a",       x"5a",       x"5a",       x"5a",       x"5a",       x"00"), -- Cycle 17
-      (x"5a",       x"5a",       x"00",       x"00",       x"00",       x"00",       x"00",       x"00")  -- Cycle 18
-  );  
+  --constant OUT_VECTOR_DATA_1 : sink_vect_data_validate := 
+  --(
+  -- --|Data Byte 0 | Data Byte 1 | Data Byte 2 | Data Byte 3 | Data Byte 4 | Data Byte 5 | Data Byte 6 | Data Byte 7
+  --    (x"62",       x"62",       x"62",       x"62",       x"00",       x"00",       x"00",       x"00"), -- Cycle 1
+  --    (x"62",       x"62",       x"62",       x"62",       x"00",       x"00",       x"00",       x"00"), -- Cycle 2
+  --    (x"68",       x"68",       x"00",       x"00",       x"00",       x"00",       x"00",       x"00"), -- Cycle 3
+  --    (x"68",       x"68",       x"68",       x"68",       x"68",       x"68",       x"68",       x"68"), -- Cycle 4
+  --    (x"68",       x"68",       x"00",       x"00",       x"00",       x"00",       x"00",       x"00"), -- Cycle 5
+  --    (x"70",       x"70",       x"70",       x"70",       x"00",       x"00",       x"00",       x"00"), -- Cycle 6
+  --    (x"70",       x"70",       x"70",       x"70",       x"70",       x"70",       x"00",       x"00"), -- Cycle 7
+  --    (x"7a",       x"7a",       x"7a",       x"7a",       x"7a",       x"7a",       x"7a",       x"7a"), -- Cycle 8
+  --    (x"7a",       x"7a",       x"7a",       x"7a",       x"7a",       x"7a",       x"7a",       x"00"), -- Cycle 9
+  --    (x"4d",       x"4d",       x"4d",       x"4d",       x"4d",       x"4d",       x"4d",       x"00"), -- Cycle 10
+  --    (x"4d",       x"4d",       x"4d",       x"4d",       x"4d",       x"4d",       x"4d",       x"00"), -- Cycle 11
+  --    (x"38",       x"38",       x"38",       x"38",       x"38",       x"38",       x"38",       x"00"), -- Cycle 12
+  --    (x"38",       x"38",       x"38",       x"38",       x"38",       x"38",       x"38",       x"38"), -- Cycle 13
+  --    (x"38",       x"38",       x"38",       x"38",       x"00",       x"00",       x"00",       x"00"), -- Cycle 14
+  --    (x"31",       x"31",       x"31",       x"31",       x"00",       x"00",       x"00",       x"00"), -- Cycle 15
+  --    (x"31",       x"31",       x"31",       x"31",       x"31",       x"31",       x"31",       x"00"), -- Cycle 16
+  --    (x"5a",       x"5a",       x"5a",       x"5a",       x"5a",       x"5a",       x"5a",       x"00"), -- Cycle 17
+  --    (x"5a",       x"5a",       x"00",       x"00",       x"00",       x"00",       x"00",       x"00")  -- Cycle 18
+  --);  
+
+ constant OUT_VECTOR_DATA_1 : sink_vect_data_validate := 
+ (
+  --|Data Byte 0 | Data Byte 1 | Data Byte 2 | Data Byte 3 | Data Byte 4 | Data Byte 5 | Data Byte 6 | Data Byte 7
+     (x"62",       x"62",       x"62",       x"62",       x"00",       x"00",       x"00",       x"00"), -- Cycle 1
+     (x"62",       x"62",       x"62",       x"62",       x"00",       x"00",       x"00",       x"00"), -- Cycle 2
+     (x"68",       x"68",       x"00",       x"00",       x"00",       x"00",       x"00",       x"00"), -- Cycle 3
+     (x"68",       x"68",       x"68",       x"68",       x"68",       x"68",       x"68",       x"68"), -- Cycle 4
+     (x"68",       x"68",       x"00",       x"00",       x"00",       x"00",       x"00",       x"00"), -- Cycle 5
+     (x"70",       x"70",       x"70",       x"70",       x"00",       x"00",       x"00",       x"00"), -- Cycle 6
+     (x"70",       x"70",       x"70",       x"70",       x"70",       x"70",       x"00",       x"00"), -- Cycle 7
+     (x"7a",       x"7a",       x"7a",       x"7a",       x"7a",       x"7a",       x"7a",       x"7a"), -- Cycle 8
+     (x"7a",       x"7a",       x"7a",       x"7a",       x"7a",       x"7a",       x"7a",       x"00"), -- Cycle 9
+     (x"4d",       x"4d",       x"4d",       x"4d",       x"4d",       x"4d",       x"4d",       x"00"), -- Cycle 10
+     (x"4d",       x"4d",       x"4d",       x"4d",       x"4d",       x"4d",       x"4d",       x"00"), -- Cycle 11
+     (x"38",       x"38",       x"38",       x"38",       x"38",       x"38",       x"38",       x"00"), -- Cycle 12
+     (x"38",       x"38",       x"38",       x"38",       x"38",       x"38",       x"38",       x"38"), -- Cycle 13
+     (x"38",       x"38",       x"38",       x"38",       x"00",       x"00",       x"00",       x"00"), -- Cycle 14
+     (x"31",       x"31",       x"31",       x"31",       x"00",       x"00",       x"00",       x"00"), -- Cycle 15
+     (x"31",       x"31",       x"31",       x"31",       x"31",       x"31",       x"31",       x"00"), -- Cycle 16
+     (x"5a",       x"5a",       x"5a",       x"5a",       x"5a",       x"5a",       x"5a",       x"00"), -- Cycle 17
+     (x"5a",       x"5a",       x"00",       x"00",       x"00",       x"00",       x"00",       x"00")  -- Cycle 18
+ );  
 
 -- Just in case we need to reverse the output data  
 --constant REVERSED_OUT_VECTOR_DATA_1 : sink_vect_data_validate := 
